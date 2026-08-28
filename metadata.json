@@ -1,0 +1,6 @@
+{
+  "name": "FilmMax Cinema",
+  "description": "منصة سينمائية ضخمة متصلة عالمياً بأكثر من 1000+ فيديو حقيقي، تشمل الأفلام والمسلسلات والريلز والبث المباشر مع مشغل متطور ونظام بحث عالمي ذكي",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
