@@ -320,11 +320,11 @@ html, body {
 
   /* 3D Carousel Hero on Android */
   #apiHero {
-    width: 95vw !important;
-    max-width: 95vw !important;
+    width: 100% !important;
+    max-width: 100% !important;
     padding: 0.75rem !important;
-    margin-left: auto !important;
-    margin-right: auto !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
     overflow: hidden !important;
     border-radius: 1.25rem !important;
   }
@@ -335,6 +335,17 @@ html, body {
   .shot {
     max-width: 100% !important;
     box-sizing: border-box !important;
+  }
+
+  .shot {
+    overflow: hidden !important;
+  }
+
+  .shot img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    display: block !important;
   }
 
   /* Prevent row item overflowing */

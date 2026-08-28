@@ -88,7 +88,7 @@ export const HeroBanner: React.FC = () => {
     <div
       id="apiHero"
       data-scroll="auto"
-      className="relative w-full max-w-[95vw] sm:max-w-full mx-auto rounded-3xl overflow-hidden glass-card border border-white/10 shadow-2xl bg-[#080b11] p-3 sm:p-6 md:p-8 mb-6 sm:mb-8 select-none transition-all duration-500"
+      className="relative w-full max-w-full overflow-hidden rounded-2xl sm:rounded-3xl glass-card border border-white/10 shadow-2xl bg-[#080b11] p-3 sm:p-5 md:p-8 mb-4 sm:mb-8 select-none transition-all duration-500"
       onMouseEnter={() => { isInteractingRef.current = true; }}
       onMouseLeave={() => { isInteractingRef.current = false; }}
     >
@@ -103,7 +103,7 @@ export const HeroBanner: React.FC = () => {
       </div>
 
       {/* 3D Carousel Header Title */}
-      <div className="relative z-10 flex items-center justify-between mb-4 sm:mb-6 px-2">
+      <div className="relative z-10 flex items-center justify-between mb-3 sm:mb-6 px-1 sm:px-2">
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center gap-1.5 bg-[#e50914] text-white text-[10px] sm:text-xs font-black px-2.5 sm:px-3 py-1 rounded-full shadow-lg shadow-[#e50914]/30">
             <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
@@ -115,7 +115,7 @@ export const HeroBanner: React.FC = () => {
         <button
           onClick={() => refreshMovies(true)}
           disabled={isLoadingMovies}
-          className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 hover:text-white transition-all disabled:opacity-50"
+          className="p-1.5 sm:p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 hover:text-white transition-all disabled:opacity-50"
           title="تحديث القائمة"
         >
           <RotateCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isLoadingMovies ? 'animate-spin text-[#e50914]' : ''}`} />
@@ -124,7 +124,7 @@ export const HeroBanner: React.FC = () => {
 
       {/* 3D Perspective Cards Stage */}
       <div
-        className="relative z-10 w-full min-h-[280px] sm:min-h-[340px] md:min-h-[380px] flex items-center justify-center overflow-hidden py-4 perspective-[1200px]"
+        className="relative z-10 w-full h-[38vh] min-h-[220px] max-h-[340px] sm:h-auto sm:min-h-[340px] md:min-h-[380px] flex items-center justify-center overflow-hidden py-2 sm:py-4 perspective-[1000px] sm:perspective-[1200px]"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -151,8 +151,8 @@ export const HeroBanner: React.FC = () => {
             let zIndex = 10;
             let isGrayscale = true;
 
-            const step1Offset = isMobile ? 65 : 140;
-            const step2Offset = isMobile ? 120 : 250;
+            const step1Offset = isMobile ? 55 : 140;
+            const step2Offset = isMobile ? 100 : 250;
 
             if (isCenter) {
               translateX = 0;
@@ -209,7 +209,7 @@ export const HeroBanner: React.FC = () => {
               >
                 {/* Poster Container (shot / shot--mono matching video design reference) */}
                 <div
-                  className={`shot relative w-32 sm:w-56 md:w-64 aspect-[2/3] rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl border transition-all duration-700 ${
+                  className={`shot relative w-[48vw] max-w-[190px] sm:w-56 md:w-64 aspect-[2/3] rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl border transition-all duration-700 ${
                     isCenter
                       ? 'border-[#e50914] shadow-[#e50914]/30 ring-2 ring-[#e50914]/40'
                       : 'border-white/10'
@@ -218,7 +218,7 @@ export const HeroBanner: React.FC = () => {
                   <img
                     src={movie.poster}
                     alt={movie.title}
-                    className={`shot--mono w-full h-full object-cover transition-all duration-700 ${
+                    className={`shot--mono w-full h-full object-cover object-center block transition-all duration-700 ${
                       isGrayscale ? 'filter grayscale contrast-125 brightness-90' : 'filter grayscale-0 contrast-100 brightness-100'
                     }`}
                   />
