@@ -224,11 +224,27 @@ body.theme-cinema {
    STRICT MOBILE & ANDROID RESPONSIVE MEDIA QUERIES
    ========================================================= */
 
+/* Mobile Global Container & Sizing Lock */
+html, body {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden !important;
+  position: relative;
+  -webkit-text-size-adjust: 100%;
+}
+
+#root {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden !important;
+  min-height: 100vh;
+}
+
 /* 1. Tablets & Medium Screens (max-width: 768px) */
 @media (max-width: 768px) {
   html, body, #root, .app-container, main {
     width: 100% !important;
-    max-width: 100% !important;
+    max-width: 100vw !important;
     overflow-x: hidden !important;
     box-sizing: border-box !important;
   }
@@ -267,9 +283,15 @@ body.theme-cinema {
 @media (max-width: 600px) {
   html, body, #root, .app-container, main {
     width: 100% !important;
-    max-width: 100% !important;
+    max-width: 100vw !important;
     overflow-x: hidden !important;
     box-sizing: border-box !important;
+  }
+
+  /* Force all images and cards to respect boundaries */
+  img, video, canvas {
+    max-width: 100% !important;
+    height: auto;
   }
 
   /* Bottom Navigation Bar Full Width Inset */
@@ -287,8 +309,10 @@ body.theme-cinema {
     max-width: 100vw !important;
     border-radius: 0 !important;
     margin-bottom: 0 !important;
-    padding-left: 0.5rem !important;
-    padding-right: 0.5rem !important;
+    padding-left: 0.25rem !important;
+    padding-right: 0.25rem !important;
+    padding-top: 0.35rem !important;
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom)) !important;
     border-left: none !important;
     border-right: none !important;
     border-bottom: none !important;
@@ -313,18 +337,24 @@ body.theme-cinema {
     box-sizing: border-box !important;
   }
 
+  /* Prevent row item overflowing */
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+    max-width: 100vw !important;
+  }
+
   /* Responsive typography scaling */
   h1 {
-    font-size: 1.25rem !important;
-    line-height: 1.75rem !important;
+    font-size: 1.2rem !important;
+    line-height: 1.6rem !important;
   }
   h2 {
-    font-size: 1.1rem !important;
-    line-height: 1.5rem !important;
+    font-size: 1.05rem !important;
+    line-height: 1.45rem !important;
   }
   h3 {
-    font-size: 0.95rem !important;
-    line-height: 1.35rem !important;
+    font-size: 0.9rem !important;
+    line-height: 1.3rem !important;
   }
   .card_plate {
     font-size: 1.15rem !important;
@@ -336,7 +366,7 @@ body.theme-cinema {
 @media (max-width: 400px) {
   html, body, #root, .app-container, main {
     width: 100% !important;
-    max-width: 100% !important;
+    max-width: 100vw !important;
     overflow-x: hidden !important;
     box-sizing: border-box !important;
   }
