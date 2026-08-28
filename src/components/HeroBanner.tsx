@@ -73,11 +73,22 @@ export const HeroBanner: React.FC = () => {
     setCurrentIndex(prev => (prev + 1) % moviesCount);
   };
 
+  // Determine 3D transform styles based on screen width
+  const [isMobile, setIsMobile] = useState<boolean>(() => typeof window !== 'undefined' && window.innerWidth < 640);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   return (
     <div
       id="apiHero"
       data-scroll="auto"
-      className="relative w-full rounded-3xl overflow-hidden glass-card border border-white/10 shadow-2xl bg-[#080b11] p-4 sm:p-6 md:p-8 mb-6 sm:mb-8 select-none transition-all duration-500"
+      className="relative w-full max-w-[95vw] sm:max-w-full mx-auto rounded-3xl overflow-hidden glass-card border border-white/10 shadow-2xl bg-[#080b11] p-3 sm:p-6 md:p-8 mb-6 sm:mb-8 select-none transition-all duration-500"
       onMouseEnter={() => { isInteractingRef.current = true; }}
       onMouseLeave={() => { isInteractingRef.current = false; }}
     >
@@ -140,40 +151,43 @@ export const HeroBanner: React.FC = () => {
             let zIndex = 10;
             let isGrayscale = true;
 
+            const step1Offset = isMobile ? 65 : 140;
+            const step2Offset = isMobile ? 120 : 250;
+
             if (isCenter) {
               translateX = 0;
               rotateY = 0;
-              scale = 1.08;
+              scale = 1.05;
               opacity = 1;
               zIndex = 30;
               isGrayscale = false; // Full color for active center card
             } else if (diff === -1) {
               // Left card
-              translateX = -140; // Desktop px offset
-              rotateY = 22; // 3D rotation in Y-axis
-              scale = 0.82;
+              translateX = -step1Offset;
+              rotateY = isMobile ? 15 : 22; // 3D rotation in Y-axis
+              scale = isMobile ? 0.85 : 0.82;
               opacity = 0.45;
               zIndex = 20;
               isGrayscale = true; // Grayscale filter as in reference video
             } else if (diff === 1) {
               // Right card
-              translateX = 140;
-              rotateY = -22;
-              scale = 0.82;
+              translateX = step1Offset;
+              rotateY = isMobile ? -15 : -22;
+              scale = isMobile ? 0.85 : 0.82;
               opacity = 0.45;
               zIndex = 20;
               isGrayscale = true;
             } else if (diff === -2) {
-              translateX = -250;
-              rotateY = 35;
-              scale = 0.68;
+              translateX = -step2Offset;
+              rotateY = isMobile ? 25 : 35;
+              scale = isMobile ? 0.72 : 0.68;
               opacity = 0.2;
               zIndex = 10;
               isGrayscale = true;
             } else if (diff === 2) {
-              translateX = 250;
-              rotateY = -35;
-              scale = 0.68;
+              translateX = step2Offset;
+              rotateY = isMobile ? -25 : -35;
+              scale = isMobile ? 0.72 : 0.68;
               opacity = 0.2;
               zIndex = 10;
               isGrayscale = true;
@@ -195,7 +209,7 @@ export const HeroBanner: React.FC = () => {
               >
                 {/* Poster Container (shot / shot--mono matching video design reference) */}
                 <div
-                  className={`shot relative w-44 sm:w-56 md:w-64 aspect-[2/3] rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl border transition-all duration-700 ${
+                  className={`shot relative w-32 sm:w-56 md:w-64 aspect-[2/3] rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl border transition-all duration-700 ${
                     isCenter
                       ? 'border-[#e50914] shadow-[#e50914]/30 ring-2 ring-[#e50914]/40'
                       : 'border-white/10'
