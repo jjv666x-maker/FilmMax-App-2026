@@ -1,0 +1,1348 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="HandheldFriendly" content="true">
+  <meta name="MobileOptimized" content="width">
+  <title>FilmMax — سينما وريلز وبث مباشر</title>
+  <meta name="description" content="منصة سينمائية خفيفة تعمل مباشرة على أي متصفح واستضافة بدون بناء">
+  
+  <style>
+    /* ==========================================================
+       1. CORE RESET & THEME VARIABLES (Zero Framework / Pure CSS)
+       ========================================================== */
+    :root {
+      --bg: #07090e;
+      --surface: #0d121d;
+      --surface-2: #141c2e;
+      --border: rgba(255, 255, 255, 0.08);
+      --border-hover: rgba(229, 9, 20, 0.4);
+      --text: #f0f2f5;
+      --text-muted: #8b96a5;
+      --primary: #e50914;
+      --primary-hover: #ff1f2d;
+      --gold: #f5c518;
+      --nav-bg: rgba(7, 9, 14, 0.92);
+      --glass-bg: rgba(13, 18, 29, 0.75);
+      --card-radius: 16px;
+      --btn-radius: 12px;
+    }
+
+    body.light-theme {
+      --bg: #f3f5f8;
+      --surface: #ffffff;
+      --surface-2: #e9eef5;
+      --border: rgba(0, 0, 0, 0.08);
+      --border-hover: rgba(229, 9, 20, 0.5);
+      --text: #111827;
+      --text-muted: #4b5563;
+      --nav-bg: rgba(255, 255, 255, 0.94);
+      --glass-bg: rgba(255, 255, 255, 0.85);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    html, body {
+      width: 100%;
+      max-width: 100vw;
+      overflow-x: hidden;
+      background-color: var(--bg);
+      color: var(--text);
+      transition: background-color 0.3s ease, color 0.3s ease;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: var(--bg);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 4px;
+    }
+
+    /* ==========================================================
+       2. LAYOUT & HEADER
+       ========================================================== */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      width: 100%;
+      background: var(--nav-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 16px;
+    }
+
+    .header-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      text-decoration: none;
+      user-select: none;
+    }
+
+    .brand-logo {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #e50914, #ff3b47);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: 900;
+      font-size: 18px;
+      box-shadow: 0 4px 14px rgba(229, 9, 20, 0.35);
+    }
+
+    .brand-title {
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+      color: var(--text);
+    }
+
+    .brand-title span {
+      color: var(--primary);
+    }
+
+    .search-box {
+      flex: 1;
+      max-width: 440px;
+      position: relative;
+    }
+
+    .search-box input {
+      width: 100%;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 30px;
+      padding: 8px 16px 8px 36px;
+      color: var(--text);
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .search-box input:focus {
+      border-color: var(--primary);
+    }
+
+    .search-box .search-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 14px;
+      color: var(--text-muted);
+      pointer-events-none;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .icon-btn {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 16px;
+      transition: all 0.2s;
+    }
+
+    .icon-btn:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    /* Category Filter Bar */
+    .category-bar {
+      max-width: 1200px;
+      margin: 8px auto 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+
+    .category-bar::-webkit-scrollbar {
+      display: none;
+    }
+
+    .cat-btn {
+      white-space: nowrap;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .cat-btn.active {
+      background: var(--primary);
+      color: #ffffff;
+      border-color: var(--primary);
+      box-shadow: 0 4px 12px rgba(229, 9, 20, 0.3);
+    }
+
+    /* ==========================================================
+       3. MAIN VIEWS (SPA Tabs)
+       ========================================================== */
+    main {
+      flex: 1;
+      max-width: 1200px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 16px;
+      padding-bottom: 90px;
+    }
+
+    .view-panel {
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .view-panel.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ==========================================================
+       4. 3D PERSPECTIVE CAROUSEL HERO (Pure CSS & JS)
+       ========================================================== */
+    .hero-container {
+      position: relative;
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--card-radius);
+      padding: 14px;
+      margin-bottom: 24px;
+      overflow: hidden;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+    }
+
+    .hero-glow {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 250px;
+      height: 250px;
+      background: var(--primary);
+      filter: blur(100px);
+      opacity: 0.18;
+      pointer-events: none;
+    }
+
+    .hero-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .badge-3d {
+      background: var(--primary);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 3px 10px;
+      border-radius: 20px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      box-shadow: 0 2px 8px rgba(229, 9, 20, 0.4);
+    }
+
+    .hero-stage {
+      position: relative;
+      width: 100%;
+      height: 38vh;
+      min-height: 220px;
+      max-height: 340px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      perspective: 900px;
+      overflow: hidden;
+      touch-action: pan-y;
+    }
+
+    .hero-card {
+      position: absolute;
+      width: 48vw;
+      max-width: 180px;
+      aspect-ratio: 2 / 3;
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: transform 0.45s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.45s ease, filter 0.45s ease;
+      will-change: transform, opacity;
+      transform-style: preserve-3d;
+    }
+
+    .hero-card img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .hero-card .tag-rating {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      color: var(--gold);
+      font-size: 10px;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 6px;
+    }
+
+    .hero-info {
+      text-align: center;
+      margin-top: 12px;
+      position: relative;
+      z-index: 10;
+    }
+
+    .hero-title {
+      font-size: 16px;
+      font-weight: 900;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .hero-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .hero-btn {
+      background: var(--primary);
+      color: #ffffff;
+      border: none;
+      border-radius: 25px;
+      padding: 8px 24px;
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 4px 16px rgba(229, 9, 20, 0.35);
+      transition: transform 0.2s, background-color 0.2s;
+    }
+
+    .hero-btn:active {
+      transform: scale(0.96);
+    }
+
+    /* ==========================================================
+       5. MOVIES GRID & CARDS
+       ========================================================== */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 20px 0 12px 0;
+    }
+
+    .section-title {
+      font-size: 15px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .movies-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    @media (min-width: 640px) {
+      .movies-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+      }
+    }
+    @media (min-width: 900px) {
+      .movies-grid {
+        grid-template-columns: repeat(5, 1fr);
+        gap: 16px;
+      }
+    }
+
+    .movie-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--card-radius);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.25s ease, border-color 0.25s ease;
+    }
+
+    .movie-card:hover {
+      border-color: var(--border-hover);
+      transform: translateY(-4px);
+    }
+
+    .poster-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 2 / 3;
+      overflow: hidden;
+      cursor: pointer;
+      background: var(--surface-2);
+    }
+
+    .poster-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .poster-play-badge {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .movie-card:hover .poster-play-badge {
+      opacity: 1;
+    }
+
+    .play-circle {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    }
+
+    .card-rating-badge {
+      position: absolute;
+      top: 6px;
+      left: 6px;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      color: var(--gold);
+      font-size: 10px;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .card-quality-badge {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      background: var(--primary);
+      color: #fff;
+      font-size: 9px;
+      font-weight: 800;
+      padding: 2px 5px;
+      border-radius: 4px;
+    }
+
+    .card-info {
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      flex: 1;
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      cursor: pointer;
+    }
+
+    .card-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .card-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+
+    .card-watch-btn {
+      color: var(--primary);
+      font-size: 12px;
+      font-weight: 800;
+      background: none;
+      border: none;
+      cursor: pointer;
+    }
+
+    .bookmark-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 15px;
+      transition: color 0.2s;
+    }
+
+    .bookmark-btn.saved {
+      color: var(--primary);
+    }
+
+    /* ==========================================================
+       6. REELS SECTION (Vertical Video Feed)
+       ========================================================== */
+    .reels-container {
+      max-width: 480px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .reel-item {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 9 / 16;
+      border-radius: var(--card-radius);
+      overflow: hidden;
+      background: #000;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--border);
+    }
+
+    .reel-item video,
+    .reel-item iframe {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border: none;
+    }
+
+    .reel-overlay {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 16px;
+      background: linear-gradient(to top, rgba(0,0,0,0.85), transparent);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .reel-title {
+      font-size: 14px;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .reel-desc {
+      font-size: 12px;
+      color: #d1d5db;
+    }
+
+    /* ==========================================================
+       7. VIDEO MODAL (YouTube Trailers & HTML5 Video)
+       ========================================================== */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: rgba(0, 0, 0, 0.88);
+      backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+    }
+
+    .modal-backdrop.active {
+      display: flex;
+    }
+
+    .modal-box {
+      width: 100%;
+      max-width: 820px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--card-radius);
+      overflow: hidden;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .modal-title {
+      font-size: 15px;
+      font-weight: 800;
+    }
+
+    .modal-close-btn {
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: var(--text);
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    .modal-video-frame {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #000;
+    }
+
+    .modal-video-frame iframe,
+    .modal-video-frame video {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    .modal-body {
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* ==========================================================
+       8. BOTTOM NAVIGATION BAR (Fixed Full Width)
+       ========================================================== */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      width: 100vw !important;
+      max-width: 100vw !important;
+      background: var(--nav-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      padding: 8px 4px max(8px, env(safe-area-inset-bottom));
+      z-index: 50;
+    }
+
+    .nav-tab {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      color: var(--text-muted);
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 700;
+      flex: 1;
+      padding: 4px;
+      transition: color 0.2s;
+    }
+
+    .nav-tab.active {
+      color: var(--primary);
+    }
+
+    .nav-tab .tab-icon {
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ==================== HEADER ==================== -->
+  <header>
+    <div class="header-container">
+      <div class="brand" onclick="switchTab('home');">
+        <div class="brand-logo">▶</div>
+        <div class="brand-title">FILM<span>MAX</span></div>
+      </div>
+
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input id="searchInput" type="text" placeholder="ابحث عن فيلم، تصنيف، أو ممثل..." oninput="handleSearch(this.value)">
+      </div>
+
+      <div class="header-actions">
+        <button class="icon-btn" onclick="toggleTheme()" title="تبديل الوضع الليلي / الفاتح">🌓</button>
+        <button class="icon-btn" onclick="switchTab('watchlist')" title="قائمتي">🔖</button>
+      </div>
+    </div>
+
+    <!-- Category Filter Bar -->
+    <div class="category-bar">
+      <button class="cat-btn active" data-cat="all" onclick="filterCategory('all')">الكل</button>
+      <button class="cat-btn" data-cat="movies" onclick="filterCategory('movies')">أفلام</button>
+      <button class="cat-btn" data-cat="series" onclick="filterCategory('series')">مسلسلات</button>
+      <button class="cat-btn" data-cat="action" onclick="filterCategory('action')">أكشن</button>
+      <button class="cat-btn" data-cat="scifi" onclick="filterCategory('scifi')">خيال علمي</button>
+      <button class="cat-btn" data-cat="nature" onclick="filterCategory('nature')">وثائقي</button>
+    </div>
+  </header>
+
+  <!-- ==================== MAIN VIEWS ==================== -->
+  <main>
+
+    <!-- VIEW 1: HOME VIEW -->
+    <div id="view-home" class="view-panel active">
+      
+      <!-- 3D Carousel Hero -->
+      <div class="hero-container">
+        <div class="hero-glow"></div>
+        <div class="hero-top">
+          <div class="badge-3d">✨ 3D Cinema Spotlight</div>
+          <div style="font-size: 11px; color: var(--text-muted);">اسحب للتنقل</div>
+        </div>
+
+        <div id="heroStage" class="hero-stage">
+          <!-- Dynamic Hero Cards -->
+        </div>
+
+        <div id="heroInfo" class="hero-info">
+          <!-- Dynamic Info -->
+        </div>
+      </div>
+
+      <!-- Section: Trending Now -->
+      <div class="section-header">
+        <div class="section-title">🔥 الأكثر رواجاً (Trending 4K)</div>
+      </div>
+      <div id="trendingGrid" class="movies-grid"></div>
+
+      <!-- Section: Top IMDb -->
+      <div class="section-header">
+        <div class="section-title">⭐ الأعلى تقييماً (Top IMDb)</div>
+      </div>
+      <div id="topRatedGrid" class="movies-grid"></div>
+
+    </div>
+
+    <!-- VIEW 2: WATCHLIST VIEW -->
+    <div id="view-watchlist" class="view-panel">
+      <div class="section-header">
+        <div class="section-title">🔖 قائمتي المحفوظة (Watchlist)</div>
+      </div>
+      <div id="watchlistGrid" class="movies-grid">
+        <!-- Injected dynamically -->
+      </div>
+      <div id="watchlistEmptyMsg" style="text-align: center; padding: 40px; color: var(--text-muted); display: none;">
+        قائمتك فارغة حالياً. اضغط على أيقونة الإشارة المرجعية لأي فيلم لحفظه هنا!
+      </div>
+    </div>
+
+    <!-- VIEW 3: REELS VIEW (Vertical Shorts) -->
+    <div id="view-reels" class="view-panel">
+      <div class="section-header">
+        <div class="section-title">📱 ريلز سينمائية (Cinema Reels)</div>
+      </div>
+      <div class="reels-container" id="reelsContainer">
+        <!-- Vertical Reels Injected -->
+      </div>
+    </div>
+
+    <!-- VIEW 4: MORE / SETTINGS VIEW -->
+    <div id="view-more" class="view-panel">
+      <div class="section-header">
+        <div class="section-title">⚙️ المزيد والإعدادات</div>
+      </div>
+      <div style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--card-radius); padding: 18px; line-height: 1.8;">
+        <h3 style="font-size: 16px; margin-bottom: 8px;">🎬 نبذة عن FilmMax Standalone:</h3>
+        <p style="font-size: 13px; color: var(--text-muted);">
+          نسخة خفيفة ومستقلة 100% تعمل على أي متصفح وأي استضافة (Netlify, Vercel, GitHub Pages, Apache) بملف واحد بدون React أو Vite أو Node.js.
+        </p>
+        <hr style="border: 0; border-top: 1px solid var(--border); margin: 14px 0;">
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <button class="hero-btn" onclick="toggleTheme()">🌓 تبديل المظهر (Dark / Light)</button>
+          <button class="hero-btn" style="background: #1e293b;" onclick="alert('جميع السيرفرات تعمل بكفاءة 100%')">📡 حالة السيرفر</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ==================== VIDEO MODAL ==================== -->
+  <div id="videoModal" class="modal-backdrop" onclick="if(event.target === this) closeModal();">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div id="modalTitle" class="modal-title">مشغل العرض</div>
+        <button class="modal-close-btn" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-video-frame" id="modalVideoContainer">
+        <!-- iframe or video player injected -->
+      </div>
+      <div class="modal-body">
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--text-muted);">
+          <span id="modalMeta">2024 • 4K HDR • 9.2 IMDb</span>
+          <button id="modalSaveBtn" class="hero-btn" style="padding: 4px 14px; font-size: 11px;">🔖 حفظ في قائمتي</button>
+        </div>
+        <p id="modalDesc" style="font-size: 13px; line-height: 1.6; color: var(--text);"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== FIXED BOTTOM NAVIGATION ==================== -->
+  <nav class="bottom-nav">
+    <button class="nav-tab active" data-target="home" onclick="switchTab('home')">
+      <span class="tab-icon">🏠</span>
+      <span>الرئيسية</span>
+    </button>
+    <button class="nav-tab" data-target="watchlist" onclick="switchTab('watchlist')">
+      <span class="tab-icon">🔖</span>
+      <span>قائمتي</span>
+    </button>
+    <button class="nav-tab" data-target="reels" onclick="switchTab('reels')">
+      <span class="tab-icon">📱</span>
+      <span>ريلز</span>
+    </button>
+    <button class="nav-tab" data-target="more" onclick="switchTab('more')">
+      <span class="tab-icon">⚙️</span>
+      <span>المزيد</span>
+    </button>
+  </nav>
+
+  <!-- ==================== JAVASCRIPT CODE (Pure Vanilla JS) ==================== -->
+  <script>
+    // TMDB & Curated Cinema Database
+    const MOVIES_DATABASE = [
+      {
+        id: 1,
+        title: 'أسرار المحيطات — Ocean Secrets',
+        category: 'nature',
+        type: 'وثائقي 4K',
+        year: '2024',
+        rating: 9.2,
+        duration: 'ساعتان و 10 دقائق',
+        poster: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=800&auto=format&fit=crop&q=80',
+        videoUrl: 'https://videos.pexels.com/video-files/3121459/3121459-uhd_2160_3840_25fps.mp4',
+        youtubeId: '7k9k7gK0eGE',
+        description: 'رحلة سينمائية غامرة في أعماق المحيطات لاستكشاف أغرب الكائنات والكهوف المائية بجودة 4K فائقة الوضوح.'
+      },
+      {
+        id: 2,
+        title: 'طريق الحرير — The Silk Road',
+        category: 'action',
+        type: 'أكشن ومغامرة',
+        year: '2023',
+        rating: 8.8,
+        duration: 'ساعتان و 24 دقيقة',
+        poster: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=800&auto=format&fit=crop&q=80',
+        videoUrl: 'https://videos.pexels.com/video-files/4440954/4440954-uhd_2160_4096_25fps.mp4',
+        youtubeId: 'd9MyW72ELq0',
+        description: 'ملحمة تاريخية تأخذك عبر قوافل الصحراء وأسرار الممالك القديمة وصراعات السيطرة على أهم ممر تجاري.'
+      },
+      {
+        id: 3,
+        title: 'مدينة النيون 2077 — Neon City',
+        category: 'scifi',
+        type: 'خيال علمي',
+        year: '2024',
+        rating: 9.0,
+        duration: 'ساعة و 58 دقيقة',
+        poster: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=800&auto=format&fit=crop&q=80',
+        videoUrl: 'https://videos.pexels.com/video-files/3191572/3191572-uhd_2160_3840_25fps.mp4',
+        youtubeId: '8hP9D6kZseM',
+        description: 'في مستقبل تحكمه الذكاء الاصطناعي، يخوض محقق سيبراني معركة لكشف مؤامرة تمس وعي البشرية.'
+      },
+      {
+        id: 4,
+        title: 'نبض الصحراء — Desert Pulse',
+        category: 'movies',
+        type: 'فيلم دراما',
+        year: '2024',
+        rating: 8.5,
+        duration: 'ساعة و 45 دقيقة',
+        poster: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=800&auto=format&fit=crop&q=80',
+        videoUrl: 'https://videos.pexels.com/video-files/3209828/3209828-uhd_2160_3840_25fps.mp4',
+        youtubeId: 'WAYdYt0N2p8',
+        description: 'قصة كفاح وبقاء وسط الكثبان الرملية الذهبية، حيث تلتقي قسوة الطبيعة مع إرادة الإنسان.'
+      },
+      {
+        id: 5,
+        title: 'المحارب الأخير — The Last Warrior',
+        category: 'action',
+        type: 'أكشن قتالي',
+        year: '2024',
+        rating: 8.9,
+        duration: 'ساعتان و 18 دقيقة',
+        poster: 'https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?w=800&auto=format&fit=crop&q=80',
+        videoUrl: 'https://videos.pexels.com/video-files/3959640/3959640-uhd_2160_4096_25fps.mp4',
+        youtubeId: '1y_0v3_wIug',
+        description: 'مبارز أسطوري يعود من المنفى للدفاع عن قريته الأخيرة ضد غزو لا يرحم.'
+      },
+      {
+        id: 6,
+        title: 'صائد النجوم — Star Chaser',
+        category: 'series',
+        type: 'مسلسل خيال',
+        year: '2024',
+        rating: 9.4,
+        duration: 'الموسم الأول (8 حلقات)',
+        poster: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80',
+        videoUrl: 'https://videos.pexels.com/video-files/3121459/3121459-uhd_2160_3840_25fps.mp4',
+        youtubeId: 'vKQi3bBA1y8',
+        description: 'مسلسل مغامرات فضائية شيق يروي رحلة فريق استكشاف نحو ثقب أسود غامض يختزن أسرار الكون.'
+      }
+    ];
+
+    const REELS_DATA = [
+      {
+        id: 101,
+        title: 'أعظم لقطة مطاردة سينمائية 4K',
+        desc: 'من كواليس تصوير فيلم The Last Warrior بالعدسات الأنافورمية.',
+        videoUrl: 'https://videos.pexels.com/video-files/3209828/3209828-uhd_2160_3840_25fps.mp4'
+      },
+      {
+        id: 102,
+        title: 'عالم المستقبل ومدينة النيون',
+        desc: 'مؤثرات بصرية مذهلة بمحرك Unreal Engine 5.',
+        videoUrl: 'https://videos.pexels.com/video-files/3191572/3191572-uhd_2160_3840_25fps.mp4'
+      }
+    ];
+
+    // State Variables
+    let currentHeroIndex = 0;
+    let watchlist = JSON.parse(localStorage.getItem('filmmax_vanilla_watchlist') || '[]');
+    let currentFilter = 'all';
+    let touchStartX = 0;
+
+    // Initialization
+    window.addEventListener('DOMContentLoaded', () => {
+      renderHero();
+      renderMovieGrids(MOVIES_DATABASE);
+      renderReels();
+      initHeroGestures();
+      
+      // Auto-slide 3D Carousel every 5.5s
+      setInterval(() => {
+        nextHero();
+      }, 5500);
+    });
+
+    // ==========================================
+    // 3D PERSPECTIVE CAROUSEL ENGINE
+    // ==========================================
+    function renderHero() {
+      const stage = document.getElementById('heroStage');
+      const info = document.getElementById('heroInfo');
+      const isMobile = window.innerWidth < 640;
+
+      const active = MOVIES_DATABASE[currentHeroIndex];
+
+      let cardsHtml = '';
+      MOVIES_DATABASE.forEach((movie, index) => {
+        const offset = (index - currentHeroIndex + MOVIES_DATABASE.length) % MOVIES_DATABASE.length;
+        let pos = offset;
+        if (pos > MOVIES_DATABASE.length / 2) {
+          pos -= MOVIES_DATABASE.length;
+        }
+
+        const isCenter = pos === 0;
+        let translateX = 0;
+        let rotateY = 0;
+        let scale = 0.7;
+        let opacity = 0.2;
+        let zIndex = 10;
+        let filterStyle = 'grayscale(100%) brightness(80%)';
+
+        const step1 = isMobile ? 55 : 140;
+        const step2 = isMobile ? 100 : 250;
+
+        if (isCenter) {
+          translateX = 0;
+          rotateY = 0;
+          scale = 1.05;
+          opacity = 1;
+          zIndex = 30;
+          filterStyle = 'grayscale(0%) brightness(100%)';
+        } else if (pos === -1) {
+          translateX = -step1;
+          rotateY = isMobile ? 15 : 22;
+          scale = isMobile ? 0.85 : 0.82;
+          opacity = 0.45;
+          zIndex = 20;
+        } else if (pos === 1) {
+          translateX = step1;
+          rotateY = isMobile ? -15 : -22;
+          scale = isMobile ? 0.85 : 0.82;
+          opacity = 0.45;
+          zIndex = 20;
+        } else if (pos === -2) {
+          translateX = -step2;
+          rotateY = isMobile ? 25 : 35;
+          scale = 0.7;
+          opacity = 0.2;
+        } else if (pos === 2) {
+          translateX = step2;
+          rotateY = isMobile ? -25 : -35;
+          scale = 0.7;
+          opacity = 0.2;
+        } else {
+          opacity = 0;
+        }
+
+        cardsHtml += `
+          <div
+            class="hero-card"
+            style="transform: translate3d(${translateX}px, 0px, 0px) rotateY(${rotateY}deg) scale(${scale}); z-index: ${zIndex}; opacity: ${opacity}; filter: ${filterStyle}; ${isCenter ? 'border-color: #e50914; box-shadow: 0 0 20px rgba(229,9,20,0.4);' : ''}"
+            onclick="handleHeroCardClick(${index})"
+          >
+            <img src="${movie.poster}" alt="${movie.title}">
+            <div class="tag-rating">⭐ ${movie.rating}</div>
+          </div>
+        `;
+      });
+
+      stage.innerHTML = cardsHtml;
+
+      info.innerHTML = `
+        <div class="hero-title">${active.title}</div>
+        <div class="hero-meta">
+          <span>⭐ ${active.rating} IMDb</span> •
+          <span>${active.type}</span> •
+          <span>${active.year}</span> •
+          <span>${active.duration}</span>
+        </div>
+        <button class="hero-btn" onclick="openVideoModal(${active.id})">
+          ▶ مشاهدة العرض الترويجي
+        </button>
+      `;
+    }
+
+    function nextHero() {
+      currentHeroIndex = (currentHeroIndex + 1) % MOVIES_DATABASE.length;
+      renderHero();
+    }
+
+    function prevHero() {
+      currentHeroIndex = (currentHeroIndex - 1 + MOVIES_DATABASE.length) % MOVIES_DATABASE.length;
+      renderHero();
+    }
+
+    function handleHeroCardClick(index) {
+      if (currentHeroIndex === index) {
+        openVideoModal(MOVIES_DATABASE[index].id);
+      } else {
+        currentHeroIndex = index;
+        renderHero();
+      }
+    }
+
+    function initHeroGestures() {
+      const stage = document.getElementById('heroStage');
+      stage.addEventListener('touchstart', (e) => {
+        touchStartX = e.touches[0].clientX;
+      }, { passive: true });
+
+      stage.addEventListener('touchend', (e) => {
+        const touchEndX = e.changedTouches[0].clientX;
+        const diff = touchEndX - touchStartX;
+        if (Math.abs(diff) > 40) {
+          if (diff > 0) prevHero();
+          else nextHero();
+        }
+      }, { passive: true });
+    }
+
+    // ==========================================
+    // MOVIES RENDERING & FILTERING
+    // ==========================================
+    function createMovieCardHTML(movie) {
+      const isSaved = watchlist.some(m => m.id === movie.id);
+      return `
+        <div class="movie-card">
+          <div class="poster-wrap" onclick="openVideoModal(${movie.id})">
+            <img src="${movie.poster}" alt="${movie.title}" loading="lazy">
+            <div class="poster-play-badge">
+              <div class="play-circle">▶</div>
+            </div>
+            <div class="card-rating-badge">⭐ ${movie.rating}</div>
+            <div class="card-quality-badge">4K</div>
+          </div>
+          <div class="card-info">
+            <div>
+              <div class="card-title" onclick="openVideoModal(${movie.id})">${movie.title}</div>
+              <div class="card-sub">
+                <span>${movie.type}</span>
+                <span>${movie.year}</span>
+              </div>
+            </div>
+            <div class="card-actions">
+              <button class="card-watch-btn" onclick="openVideoModal(${movie.id})">مشاهدة</button>
+              <button class="bookmark-btn ${isSaved ? 'saved' : ''}" onclick="toggleWatchlist(${movie.id})">
+                ${isSaved ? '🔖' : '📑'}
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderMovieGrids(list) {
+      const trendingGrid = document.getElementById('trendingGrid');
+      const topRatedGrid = document.getElementById('topRatedGrid');
+
+      if (trendingGrid) {
+        trendingGrid.innerHTML = list.map(createMovieCardHTML).join('');
+      }
+
+      if (topRatedGrid) {
+        const sorted = [...list].sort((a, b) => b.rating - a.rating);
+        topRatedGrid.innerHTML = sorted.map(createMovieCardHTML).join('');
+      }
+    }
+
+    function filterCategory(cat) {
+      currentFilter = cat;
+      document.querySelectorAll('.cat-btn').forEach(btn => {
+        if (btn.getAttribute('data-cat') === cat) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+
+      if (cat === 'all') {
+        renderMovieGrids(MOVIES_DATABASE);
+      } else {
+        const filtered = MOVIES_DATABASE.filter(m => m.category === cat || m.type.includes(cat));
+        renderMovieGrids(filtered.length > 0 ? filtered : MOVIES_DATABASE);
+      }
+    }
+
+    function handleSearch(query) {
+      const q = query.trim().toLowerCase();
+      if (!q) {
+        filterCategory(currentFilter);
+        return;
+      }
+      const results = MOVIES_DATABASE.filter(m => 
+        m.title.toLowerCase().includes(q) || 
+        m.type.toLowerCase().includes(q) || 
+        m.description.toLowerCase().includes(q)
+      );
+      renderMovieGrids(results);
+    }
+
+    // ==========================================
+    // WATCHLIST MANAGER
+    // ==========================================
+    function toggleWatchlist(movieId) {
+      const movie = MOVIES_DATABASE.find(m => m.id === movieId);
+      if (!movie) return;
+
+      const idx = watchlist.findIndex(m => m.id === movieId);
+      if (idx > -1) {
+        watchlist.splice(idx, 1);
+      } else {
+        watchlist.push(movie);
+      }
+
+      localStorage.setItem('filmmax_vanilla_watchlist', JSON.stringify(watchlist));
+      renderMovieGrids(MOVIES_DATABASE);
+      renderWatchlist();
+    }
+
+    function renderWatchlist() {
+      const grid = document.getElementById('watchlistGrid');
+      const emptyMsg = document.getElementById('watchlistEmptyMsg');
+
+      if (watchlist.length === 0) {
+        grid.innerHTML = '';
+        emptyMsg.style.display = 'block';
+      } else {
+        emptyMsg.style.display = 'none';
+        grid.innerHTML = watchlist.map(createMovieCardHTML).join('');
+      }
+    }
+
+    // ==========================================
+    // REELS RENDERER
+    // ==========================================
+    function renderReels() {
+      const container = document.getElementById('reelsContainer');
+      container.innerHTML = REELS_DATA.map(reel => `
+        <div class="reel-item">
+          <video src="${reel.videoUrl}" controls playsinline loop></video>
+          <div class="reel-overlay">
+            <div class="reel-title">${reel.title}</div>
+            <div class="reel-desc">${reel.desc}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // ==========================================
+    // VIDEO MODAL (YouTube & MP4 Player)
+    // ==========================================
+    function openVideoModal(movieId) {
+      const movie = MOVIES_DATABASE.find(m => m.id === movieId);
+      if (!movie) return;
+
+      document.getElementById('modalTitle').innerText = movie.title;
+      document.getElementById('modalMeta').innerText = `${movie.year} • 4K HDR • ⭐ ${movie.rating} IMDb`;
+      document.getElementById('modalDesc').innerText = movie.description;
+
+      const container = document.getElementById('modalVideoContainer');
+      
+      // Embed HTML5 4K Video or YouTube Trailer
+      if (movie.videoUrl) {
+        container.innerHTML = `
+          <video src="${movie.videoUrl}" controls autoplay playsinline style="width:100%; height:100%; object-fit:cover;"></video>
+        `;
+      } else {
+        container.innerHTML = `
+          <iframe src="https://www.youtube.com/embed/${movie.youtubeId}?autoplay=1" allowfullscreen allow="autoplay"></iframe>
+        `;
+      }
+
+      const saveBtn = document.getElementById('modalSaveBtn');
+      const isSaved = watchlist.some(m => m.id === movie.id);
+      saveBtn.innerText = isSaved ? '🔖 في قائمتك' : '📑 إضافة لقائمتي';
+      saveBtn.onclick = () => {
+        toggleWatchlist(movie.id);
+        openVideoModal(movie.id);
+      };
+
+      document.getElementById('videoModal').classList.add('active');
+    }
+
+    function closeModal() {
+      const container = document.getElementById('modalVideoContainer');
+      container.innerHTML = '';
+      document.getElementById('videoModal').classList.remove('active');
+    }
+
+    // ==========================================
+    // TAB SWITCHER & THEME TOGGLE
+    // ==========================================
+    function switchTab(tabName) {
+      document.querySelectorAll('.view-panel').forEach(view => view.classList.remove('active'));
+      document.querySelectorAll('.nav-tab').forEach(tab => tab.classList.remove('active'));
+
+      const targetView = document.getElementById('view-' + tabName);
+      if (targetView) targetView.classList.add('active');
+
+      const targetNav = document.querySelector(`.nav-tab[data-target="${tabName}"]`);
+      if (targetNav) targetNav.classList.add('active');
+
+      if (tabName === 'watchlist') renderWatchlist();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function toggleTheme() {
+      document.body.classList.toggle('light-theme');
+      const isLight = document.body.classList.contains('light-theme');
+      localStorage.setItem('filmmax_theme', isLight ? 'light' : 'dark');
+    }
+
+    // Load Saved Theme
+    if (localStorage.getItem('filmmax_theme') === 'light') {
+      document.body.classList.add('light-theme');
+    }
+  </script>
+</body>
+</html>
