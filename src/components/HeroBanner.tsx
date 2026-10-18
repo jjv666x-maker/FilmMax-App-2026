@@ -195,7 +195,7 @@ export const HeroBanner: React.FC = () => {
 
             return (
               <div
-                key={movie.id}
+                key={`banner-${movie.id}-${index}`}
                 onClick={() => setCurrentIndex(index)}
                 className={`card absolute cursor-pointer transition-all duration-700 ease-out transform-gpu ${
                   isCenter ? 'pointer-events-auto' : 'hover:opacity-75'

@@ -151,7 +151,16 @@ const STORAGE_KEYS = {
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [activeScreen, setActiveScreen] = useState<ScreenId>('home');
-  const [movies, setMovies] = useState<Movie[]>(INITIAL_MOVIES);
+  const [movies, setMovies] = useState<Movie[]>(() => {
+    try {
+      const saved = localStorage.getItem('filmmax_movies_cache_v6');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return INITIAL_MOVIES;
+  });
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isLoadingMovies, setIsLoadingMovies] = useState<boolean>(false);
@@ -189,6 +198,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (data.length > 0) {
         setMovies(data);
         setCurrentPage(5);
+        try {
+          localStorage.setItem('filmmax_movies_cache_v6', JSON.stringify(data));
+        } catch {}
       }
     } catch (e) {
       console.warn('Refresh failed:', e);
@@ -227,12 +239,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setMovies(prev => {
           const combined = [...prev, ...newItems];
           const seen = new Set<string>();
-          return combined.filter(m => {
+          const filtered = combined.filter(m => {
             const key = `${m.id}-${m.type}`;
             if (seen.has(key)) return false;
             seen.add(key);
             return true;
           });
+          try {
+            localStorage.setItem('filmmax_movies_cache_v6', JSON.stringify(filtered));
+          } catch {}
+          return filtered;
         });
         setCurrentPage(endPage);
       } else {

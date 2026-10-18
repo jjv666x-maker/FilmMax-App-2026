@@ -2,8 +2,8 @@ import { Movie } from '../types';
 import { INITIAL_MOVIES } from '../data/mockMovies';
 
 const API_BASE = '/api/tmdb';
-const TMDB_IMAGE = 'https://image.tmdb.org/t/p/w780';
-const TMDB_BACKDROP = 'https://image.tmdb.org/t/p/w1280';
+const TMDB_IMAGE = 'https://image.tmdb.org/t/p/original';
+const TMDB_BACKDROP = 'https://image.tmdb.org/t/p/original';
 const TMDB_LANG = 'ar-SA';
 
 const GENRE_MAP: Record<number, string> = {

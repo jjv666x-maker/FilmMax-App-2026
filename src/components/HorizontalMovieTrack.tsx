@@ -191,9 +191,9 @@ export const HorizontalMovieTrack: React.FC<HorizontalMovieTrackProps> = ({
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {cardType === 'poster' && (
-            movies.map(movie => (
+            movies.map((movie, index) => (
               <div
-                key={movie.id}
+                key={`track-poster-${movie.id}-${index}`}
                 className="flex-shrink-0 w-[145px] sm:w-[170px] md:w-[195px] snap-start transition-transform duration-300 hover:scale-[1.03]"
               >
                 <MovieCard movie={movie} />
@@ -202,9 +202,9 @@ export const HorizontalMovieTrack: React.FC<HorizontalMovieTrackProps> = ({
           )}
 
           {cardType === 'wide' && (
-            movies.map(movie => (
+            movies.map((movie, index) => (
               <div
-                key={movie.id}
+                key={`track-wide-${movie.id}-${index}`}
                 onClick={() => {
                   setActiveMovie(movie);
                   navigateTo('player');

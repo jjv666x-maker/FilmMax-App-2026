@@ -119,9 +119,9 @@ export const HomeView: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-4 overflow-x-auto no-scrollbar py-2">
-            {continueWatching.map(item => (
+            {continueWatching.map((item, index) => (
               <div 
-                key={item.id} 
+                key={`cw-${item.id}-${index}`} 
                 className="flex-shrink-0 w-64 group relative cursor-pointer"
                 onClick={() => {
                   const movie = movies.find(m => m.id === item.videoId);
@@ -355,11 +355,23 @@ export const HomeView: React.FC = () => {
         {/* Fluid Horizontal Scrolling Row */}
         <div className="relative group/carousel">
           <div className="flex items-center gap-3.5 overflow-x-auto custom-scrollbar pb-3 pt-1 px-1 scroll-smooth snap-x snap-mandatory">
-            {groups.map(group => {
-              const sampleMovies = movies.filter(m => group.movieIds.includes(m.id)).slice(0, 3);
+            {groups.map((group, gIdx) => {
+              const matchedGroupMovies = movies.filter(m => 
+                group.movieIds.some(id => String(id) === String(m.id)) ||
+                (group.id === 'trending-now' && (m.isTrending || Number(m.rating) >= 8.5)) ||
+                (group.id === 'action-thrill' && m.genres?.includes('أكشن')) ||
+                (group.id === 'sci-fi-masterpieces' && (m.genres?.includes('خيال علمي') || m.genres?.includes('مغامرة'))) ||
+                (group.id === 'critics-choice' && Number(m.rating) >= 8.6) ||
+                (group.id === 'mystery-horror' && (m.genres?.includes('رعب') || m.genres?.includes('غموض') || m.genres?.includes('جريمة'))) ||
+                (group.id === 'family-animation' && (m.genres?.includes('عائلي') || m.genres?.includes('رسوم متحركة') || m.genres?.includes('كوميدي'))) ||
+                (group.id === 'free-to-watch' && m.isFree) ||
+                (group.id === 'originals' && (m.source === 'pexels' || [120, 121, 122, 123, 124, 125].includes(Number(m.id)))) ||
+                (group.id === 'documentaries' && (m.genres?.includes('وثائقي') || m.genres?.includes('طبيعة')))
+              );
+              const sampleMovies = (matchedGroupMovies.length > 0 ? matchedGroupMovies : movies).slice(0, 3);
               return (
                 <div
-                  key={group.id}
+                  key={`group-${group.id}-${gIdx}`}
                   onClick={() => {
                     setActiveGroup(group);
                     navigateTo('groups');
@@ -373,7 +385,7 @@ export const HomeView: React.FC = () => {
                   <div className="relative h-28 w-full mb-3 flex items-center justify-center">
                     {sampleMovies.map((m, idx) => (
                       <img
-                        key={m.id}
+                        key={`group-movie-${group.id}-${m.id}-${idx}`}
                         src={m.poster}
                         alt=""
                         className="absolute w-16 h-22 rounded-xl object-cover shadow-xl border border-white/20 transition-all duration-300 group-hover:scale-105"
@@ -553,11 +565,11 @@ export const HomeView: React.FC = () => {
 
         {/* Full Episodes Cards Horizontal Carousel */}
         <div className="flex items-stretch gap-4 overflow-x-auto no-scrollbar py-2 px-1 snap-x snap-mandatory">
-          {seriesList.map(series => {
+          {seriesList.map((series, sIdx) => {
             const episodes = series.episodes || [];
             return (
               <div
-                key={series.id}
+                key={`series-${series.id}-${sIdx}`}
                 className="flex-shrink-0 w-[280px] sm:w-[320px] md:w-[350px] snap-start glass-card p-4 rounded-2xl border border-white/10 hover:border-red-500/40 transition-all flex flex-col justify-between space-y-3 group bg-[#0d1017]/80"
               >
                 <div className="flex items-start gap-3">
@@ -583,9 +595,9 @@ export const HomeView: React.FC = () => {
                 <div className="pt-2 border-t border-white/10 space-y-1.5">
                   <span className="text-[11px] font-bold text-gray-300 block">اختر حلقة لمشاهدتها فوراً:</span>
                   <div className="grid grid-cols-2 gap-1.5">
-                    {episodes.slice(0, 4).map(ep => (
+                    {episodes.slice(0, 4).map((ep, eIdx) => (
                       <button
-                        key={ep.id}
+                        key={`ep-${series.id}-${ep.id}-${eIdx}`}
                         onClick={() => navigateTo('player', series)}
                         className="p-2 rounded-xl bg-white/5 hover:bg-[#e50914] text-gray-200 hover:text-white border border-white/5 hover:border-[#e50914] text-right transition-all flex items-center justify-between group/ep"
                       >
