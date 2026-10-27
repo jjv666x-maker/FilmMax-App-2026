@@ -81,15 +81,15 @@ export const MovieCard: React.FC<MovieCardProps> = ({ movie, layout = 'standard'
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-80 group-hover:opacity-95 transition-opacity" />
 
         {/* Rating Badge */}
-        <div className="absolute top-2 right-2 flex items-center gap-1 bg-black/75 backdrop-blur-md px-2 py-1 rounded-lg text-amber-400 text-xs font-black border border-amber-400/20 shadow-md">
-          <Star className="w-3.5 h-3.5 fill-amber-400" />
+        <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 flex items-center gap-0.5 sm:gap-1 bg-black/75 backdrop-blur-md px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md sm:rounded-lg text-amber-400 text-[10px] sm:text-xs font-black border border-amber-400/20 shadow-md">
+          <Star className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-amber-400" />
           <span>{movie.rating}</span>
         </div>
 
         {/* Quality / Type Badge */}
-        <div className="absolute top-2 left-2 flex items-center gap-1">
+        <div className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 flex items-center gap-1">
           {movie.quality && (
-            <span className="bg-[#e50914]/90 backdrop-blur-md px-1.5 py-0.5 rounded text-[10px] font-black text-white shadow">
+            <span className="bg-[#e50914]/90 backdrop-blur-md px-1 sm:px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-black text-white shadow">
               {movie.quality}
             </span>
           )}
@@ -102,10 +102,10 @@ export const MovieCard: React.FC<MovieCardProps> = ({ movie, layout = 'standard'
               e.stopPropagation();
               navigateTo('player', movie);
             }}
-            className="w-12 h-12 rounded-full bg-[#e50914] text-white flex items-center justify-center shadow-xl hover:scale-110 active:scale-95 transition-all"
+            className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-[#e50914] text-white flex items-center justify-center shadow-xl hover:scale-110 active:scale-95 transition-all"
             title="مشاهدة الآن"
           >
-            <Play className="w-5 h-5 fill-white mr-0.5" />
+            <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-white mr-0.5" />
           </button>
         </div>
 
@@ -115,25 +115,25 @@ export const MovieCard: React.FC<MovieCardProps> = ({ movie, layout = 'standard'
             e.stopPropagation();
             toggleFavorite(movie.id);
           }}
-          className="absolute bottom-2 left-2 p-2 rounded-xl bg-black/60 backdrop-blur-md text-white hover:text-[#e50914] active:scale-90 transition-all border border-white/10"
+          className="absolute bottom-1.5 left-1.5 sm:bottom-2 sm:left-2 p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-black/60 backdrop-blur-md text-white hover:text-[#e50914] active:scale-90 transition-all border border-white/10"
           title={favorite ? 'إزالة من قائمتي' : 'إضافة إلى قائمتي'}
         >
-          <Heart className={`w-4 h-4 ${favorite ? 'fill-[#e50914] text-[#e50914]' : ''}`} />
+          <Heart className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${favorite ? 'fill-[#e50914] text-[#e50914]' : ''}`} />
         </button>
 
         {/* Media Type Indicator */}
-        <div className="absolute bottom-2.5 right-2 flex items-center gap-1 text-[11px] text-gray-300 font-medium drop-shadow">
-          {movie.type === 'مسلسل' ? <Tv className="w-3.5 h-3.5" /> : <Film className="w-3.5 h-3.5" />}
+        <div className="absolute bottom-1.5 right-1.5 sm:bottom-2.5 sm:right-2 flex items-center gap-1 text-[10px] sm:text-[11px] text-gray-300 font-medium drop-shadow">
+          {movie.type === 'مسلسل' ? <Tv className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> : <Film className="w-3 h-3 sm:w-3.5 sm:h-3.5" />}
           <span>{movie.year}</span>
         </div>
       </div>
 
       {/* Title & Info */}
-      <div className="p-3 bg-[#0d1017]">
-        <h3 className="text-xs sm:text-sm font-bold text-white truncate group-hover:text-[#e50914] transition-colors">
+      <div className="p-2 sm:p-2.5 bg-[#0d1017]">
+        <h3 className="text-[11px] sm:text-xs md:text-sm font-bold text-white truncate group-hover:text-[#e50914] transition-colors">
           {movie.title}
         </h3>
-        <div className="flex items-center justify-between mt-1 text-[11px] text-gray-400">
+        <div className="flex items-center justify-between mt-0.5 sm:mt-1 text-[10px] sm:text-[11px] text-gray-400">
           <span>{movie.genres?.[0] || movie.type}</span>
           <span className="text-emerald-400 font-bold">{movie.matchScore || 95}% تطابق</span>
         </div>

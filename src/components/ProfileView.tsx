@@ -622,11 +622,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
   const containerClasses = isModal 
     ? "fixed inset-0 z-50 bg-black/90 backdrop-blur-2xl flex items-center justify-center p-0 sm:p-2 overflow-hidden"
-    : "w-full max-w-4xl mx-auto pb-20";
+    : "w-full max-w-full lg:max-w-4xl mx-auto pb-16 sm:pb-20 overflow-x-hidden";
 
   const innerClasses = isModal
     ? "w-full max-w-full sm:max-w-md h-[100dvh] sm:h-[calc(100dvh-20px)] bg-[#0d1117] text-white sm:rounded-3xl border-0 sm:border border-white/10 shadow-2xl flex flex-col relative overflow-hidden"
-    : `w-full min-h-screen ${theme === 'light' ? 'bg-white text-gray-900' : 'bg-transparent text-white'} flex flex-col`;
+    : `w-full max-w-full min-h-screen ${theme === 'light' ? 'bg-white text-gray-900' : 'bg-transparent text-white'} flex flex-col overflow-x-hidden`;
 
   return (
     <div className={containerClasses} dir="rtl">
@@ -722,7 +722,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         <div className="flex-1 overflow-y-auto custom-scrollbar">
           
           {/* Cover Photo / Video Banner */}
-          <div className="relative w-full h-48 sm:h-56 bg-zinc-950 overflow-hidden group">
+          <div className="relative w-full h-36 sm:h-48 md:h-56 bg-zinc-950 overflow-hidden group">
             {isVideoMedia(profileData.coverVideo || profileData.coverPhoto, profileData.coverType) ? (
               <video
                 src={profileData.coverVideo || profileData.coverPhoto}
@@ -743,31 +743,31 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/35 to-black/20 pointer-events-none" />
 
             {isVideoMedia(profileData.coverVideo || profileData.coverPhoto, profileData.coverType) && (
-              <div className="absolute top-3 left-3 z-20">
+              <div className="absolute top-2 left-2 sm:top-3 sm:left-3 z-20">
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     setIsCoverMuted(prev => !prev);
                   }}
-                  className="p-3 bg-black/70 backdrop-blur-2xl hover:bg-black/90 rounded-full border border-white/30 shadow-2xl transition-all text-white active:scale-90 cursor-pointer flex items-center justify-center"
+                  className="p-2 sm:p-3 bg-black/70 backdrop-blur-2xl hover:bg-black/90 rounded-full border border-white/30 shadow-2xl transition-all text-white active:scale-90 cursor-pointer flex items-center justify-center"
                   title={isCoverMuted ? "تشغيل صوت الخلفية" : "كتم صوت الخلفية"}
                 >
-                  {isCoverMuted ? <VolumeX className="w-4 h-4 text-gray-300" /> : <Volume2 className="w-4 h-4 text-emerald-400" />}
+                  {isCoverMuted ? <VolumeX className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-300" /> : <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400" />}
                 </button>
               </div>
             )}
 
             {/* Cover Change Button */}
             {isOwnProfile && (
-              <div className="absolute bottom-3 left-3 z-40 pointer-events-auto">
+              <div className="absolute bottom-2 left-2 sm:bottom-3 sm:left-3 z-40 pointer-events-auto">
                 <button 
                   type="button" 
                   onClick={() => setIsCoverModalOpen(true)}
-                  className="px-3 py-1.5 bg-black/85 hover:bg-black backdrop-blur-md rounded-xl text-white text-xs font-bold flex items-center gap-1.5 border border-white/30 shadow-2xl transition-all active:scale-95 cursor-pointer pointer-events-auto"
+                  className="px-2.5 py-1 sm:px-3 sm:py-1.5 bg-black/85 hover:bg-black backdrop-blur-md rounded-xl text-white text-[11px] sm:text-xs font-bold flex items-center gap-1 sm:gap-1.5 border border-white/30 shadow-2xl transition-all active:scale-95 cursor-pointer pointer-events-auto"
                   title="تعديل الغلاف وقصه"
                 >
-                  <Camera className="w-3.5 h-3.5 text-amber-400" />
+                  <Camera className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-400" />
                   <span>تعديل الغلاف</span>
                 </button>
               </div>
@@ -775,9 +775,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           </div>
 
           {/* Avatar & User Details */}
-          <div className="flex flex-col items-center px-4 -mt-16 sm:-mt-20 relative z-10 text-center">
+          <div className="flex flex-col items-center px-4 -mt-10 sm:-mt-14 md:-mt-20 relative z-10 text-center">
             
-            <div className="relative mb-3 group">
+            <div className="relative mb-2 sm:mb-3 group">
               <div 
                 onClick={() => {
                   if (hasActiveStory) {
@@ -786,7 +786,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                     setIsAddStoryOpen(true);
                   }
                 }}
-                className={`w-28 h-28 sm:w-36 sm:h-36 rounded-full p-1.5 cursor-pointer transition-all duration-300 relative ${
+                className={`w-20 h-20 sm:w-28 sm:h-28 md:w-36 md:h-36 rounded-full p-1 sm:p-1.5 cursor-pointer transition-all duration-300 relative ${
                   hasActiveStory 
                     ? 'bg-gradient-to-tr from-amber-400 via-[#e50914] via-purple-600 to-cyan-400 animate-pulse shadow-[0_0_30px_rgba(229,9,20,0.9)] scale-105' 
                     : 'bg-gradient-to-tr from-white/20 via-[#e50914]/40 to-white/10'
@@ -795,7 +795,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 <img
                   src={profileData.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200'}
                   alt={profileData.name}
-                  className="w-full h-full object-cover rounded-full border-4 border-[#0d1117]"
+                  className="w-full h-full object-cover rounded-full border-2 sm:border-4 border-[#0d1117]"
                 />
               </div>
 
@@ -803,10 +803,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 <button
                   type="button"
                   onClick={() => avatarInputRef.current?.click()}
-                  className="absolute bottom-1 right-1 p-2 bg-[#e50914] hover:bg-[#b80710] text-white rounded-full border-2 border-black shadow-xl transition-all active:scale-90 cursor-pointer"
+                  className="absolute bottom-0 right-0 sm:bottom-1 sm:right-1 p-1.5 sm:p-2 bg-[#e50914] hover:bg-[#b80710] text-white rounded-full border sm:border-2 border-black shadow-xl transition-all active:scale-90 cursor-pointer"
                   title="تغيير الصورة الشخصية"
                 >
-                  <Camera className="w-3.5 h-3.5" />
+                  <Camera className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                 </button>
               )}
             </div>
@@ -833,7 +833,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                         title={isOwnProfile ? "اضغط لتعديل الاسم" : profileData.name}
                       >
                         <span 
-                          className={`font-black text-xl sm:text-2xl tracking-tight select-text inline-block break-words ${profileData.nameColorStyle?.className || (profileData.nameCustomColor || profileData.nameMedia ? '' : 'text-white')}`}
+                          className={`font-black text-base sm:text-xl md:text-2xl tracking-tight select-text inline-block break-words ${profileData.nameColorStyle?.className || (profileData.nameCustomColor || profileData.nameMedia ? '' : 'text-white')}`}
                           style={
                             profileData.nameMedia ? {
                               backgroundImage: `url(${profileData.nameMedia})`,
@@ -851,7 +851,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                           {profileData.name || 'اسم المستخدم'}
                         </span>
                         
-                        <VerifiedBadge level={currentLevelInfo.level} className="w-5 h-5 sm:w-6 sm:h-6 shrink-0" />
+                        <VerifiedBadge level={currentLevelInfo.level} className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 shrink-0" />
 
                         {isOwnProfile && (
                           <span className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-gray-400 hover:text-white rounded-full">
@@ -862,7 +862,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                     ) : (
                       <div 
                         dir={isArabicName ? 'rtl' : 'ltr'}
-                        className="inline-flex items-center justify-center gap-2 bg-zinc-900/90 border border-sky-500/50 rounded-2xl px-3 py-1.5 shadow-[0_0_20px_rgba(0,149,246,0.3)] backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150"
+                        className="inline-flex items-center justify-center gap-2 bg-zinc-900/90 border border-sky-500/50 rounded-2xl px-2.5 sm:px-3 py-1 sm:py-1.5 shadow-[0_0_20px_rgba(0,149,246,0.3)] backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150"
                       >
                         <input
                           ref={nameInputRef}
@@ -883,10 +883,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                           }}
                           placeholder="اسم المستخدم"
                           style={{ width: `${Math.max(2, (profileData.name || '').length + 1)}ch` }}
-                          className={`font-black text-xl sm:text-2xl bg-transparent outline-none border-0 p-0 text-center ${profileData.nameColorStyle?.className || 'text-white'}`}
+                          className={`font-black text-base sm:text-xl md:text-2xl bg-transparent outline-none border-0 p-0 text-center ${profileData.nameColorStyle?.className || 'text-white'}`}
                         />
                         
-                        <VerifiedBadge level={currentLevelInfo.level} className="w-5 h-5 sm:w-6 sm:h-6 shrink-0" />
+                        <VerifiedBadge level={currentLevelInfo.level} className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
 
                         <button
                           type="button"
@@ -906,14 +906,14 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   </div>
 
                   {/* Level Pill Indicator */}
-                  <div className="flex items-center justify-center gap-1.5 mt-1">
+                  <div className="flex items-center justify-center gap-1.5 mt-0.5 sm:mt-1">
                     <button
                       type="button"
                       onClick={() => setShowMissionsModal(true)}
-                      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-white/5 hover:bg-white/10 border ${currentLevelInfo.badgeBorder} text-amber-300 shadow-sm cursor-pointer transition-all active:scale-95`}
+                      className={`inline-flex items-center gap-1 px-2 sm:px-2.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold bg-white/5 hover:bg-white/10 border ${currentLevelInfo.badgeBorder} text-amber-300 shadow-sm cursor-pointer transition-all active:scale-95`}
                       title="عرض تفاصيل المستوى والمهام"
                     >
-                      <Zap className="w-3 h-3 text-amber-400 fill-amber-400" />
+                      <Zap className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-amber-400 fill-amber-400" />
                       <span>المستوى {currentLevelInfo.level}: {currentLevelInfo.title}</span>
                     </button>
                   </div>
@@ -922,54 +922,54 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               );
             })()}
 
-            <span className="text-xs sm:text-sm text-gray-400 font-mono mb-2">
+            <span className="text-[11px] sm:text-xs md:text-sm text-gray-400 font-mono mb-1.5 sm:mb-2">
               @{profileData.username || 'mohamed_cinema'}
             </span>
 
             {/* Stats Counter */}
-            <div className="flex items-center justify-center gap-8 sm:gap-12 my-3 py-1 px-4 bg-transparent border-0 shadow-none">
+            <div className="flex items-center justify-center gap-6 sm:gap-10 md:gap-12 my-2 sm:my-3 py-1 px-3 bg-transparent border-0 shadow-none">
               <div className="flex flex-col items-center">
-                <span className="text-lg font-black tracking-tight text-white">{userReels.length}</span>
+                <span className="text-lg md:text-xl font-black tracking-tight text-white">{userReels.length}</span>
                 <span className="text-xs text-gray-400 font-bold">منشورات</span>
               </div>
-              <div className="w-[1px] h-6 bg-white/10" />
+              <div className="w-[1px] h-5 sm:h-6 bg-white/10" />
               <div className="flex flex-col items-center">
-                <span className="text-lg font-black tracking-tight text-white">{profileData.followersCount || '2.4M'}</span>
+                <span className="text-lg md:text-xl font-black tracking-tight text-white">{profileData.followersCount || '2.4M'}</span>
                 <span className="text-xs text-gray-400 font-bold">متابع</span>
               </div>
-              <div className="w-[1px] h-6 bg-white/10" />
+              <div className="w-[1px] h-5 sm:h-6 bg-white/10" />
               <div className="flex flex-col items-center">
-                <span className="text-lg font-black tracking-tight text-white">{profileData.likesCount || '18.5K'}</span>
+                <span className="text-lg md:text-xl font-black tracking-tight text-white">{profileData.likesCount || '18.5K'}</span>
                 <span className="text-xs text-gray-400 font-bold">إعجاب</span>
               </div>
             </div>
 
             {/* Profile Action Buttons (Publish Reel triggers advanced TikTok-style ReelsVideoEditor) */}
-            <div className="flex items-center justify-center gap-2.5 w-full max-w-md my-2">
+            <div className="flex items-center justify-center gap-2 w-full max-w-md my-2 px-1">
               <button
                 onClick={() => navigateTo('personal')}
-                className="flex-1 py-2.5 px-4 bg-white/10 hover:bg-white/20 text-white rounded-xl font-black text-xs sm:text-sm border border-white/15 shadow-md active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                className="flex-1 py-2 px-3 bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold text-sm border border-white/15 shadow-md active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <Edit2 className="w-4 h-4 text-sky-400" />
-                <span>إعدادات الحساب</span>
+                <Edit2 className="w-4 h-4 text-sky-400 shrink-0" />
+                <span className="whitespace-nowrap">إعدادات الحساب</span>
               </button>
 
               <button
                 onClick={() => setIsAddStoryOpen(true)}
-                className="py-2.5 px-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl font-black text-xs sm:text-sm shadow-lg active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                className="py-2 px-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl font-bold text-sm shadow-lg active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
                 title="إضافة قصة جديدة"
               >
-                <Plus className="w-4 h-4" />
-                <span>إضافة قصة</span>
+                <Plus className="w-4 h-4 shrink-0" />
+                <span className="whitespace-nowrap">إضافة قصة</span>
               </button>
 
               <button
                 onClick={() => setIsCameraCaptureOpen(true)}
-                className="py-2.5 px-4 bg-[#e50914] hover:bg-[#b80710] text-white rounded-xl font-black text-xs sm:text-sm shadow-xl active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                className="py-2 px-3 bg-[#e50914] hover:bg-[#b80710] text-white rounded-xl font-bold text-sm shadow-xl active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
                 title="نشر ريلز جديد"
               >
-                <Film className="w-4 h-4" />
-                <span>نشر ريلز</span>
+                <Film className="w-4 h-4 shrink-0" />
+                <span className="whitespace-nowrap">نشر ريلز</span>
               </button>
             </div>
 
@@ -979,22 +979,22 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               onChange={(e) => setProfileData((prev: any) => ({ ...prev, bio: e.target.value }))}
               placeholder="اكتب نبذة عنك..."
               rows={2}
-              className="text-xs sm:text-sm text-gray-300 leading-relaxed max-w-md w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl mt-2.5 mb-2 font-medium text-center outline-none focus:border-white/30 resize-none"
+              className="text-sm text-gray-300 leading-normal max-w-md w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl mt-2 mb-2 font-medium text-center outline-none focus:border-white/30 resize-none overflow-hidden break-words"
             />
 
             {/* Active Stories Tray */}
             {userActiveStories.length > 0 && (
-              <div className="w-full max-w-md mt-4 flex items-center gap-3 overflow-x-auto pb-2 custom-scrollbar">
+              <div className="w-full max-w-md mt-2 sm:mt-4 flex items-center gap-2.5 sm:gap-3 overflow-x-auto pb-1.5 sm:pb-2 custom-scrollbar">
                 {userActiveStories.map(story => (
                   <div
                     key={story.id}
                     onClick={() => setActiveStoryViewer(story)}
                     className="flex flex-col items-center gap-1 shrink-0 cursor-pointer group"
                   >
-                    <div className="w-14 h-14 rounded-full p-0.5 bg-gradient-to-tr from-amber-400 to-[#e50914] group-hover:scale-105 transition-transform">
+                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full p-0.5 bg-gradient-to-tr from-amber-400 to-[#e50914] group-hover:scale-105 transition-transform">
                       {story.mediaType === 'video' ? (
                         <div className="w-full h-full rounded-full bg-black flex items-center justify-center border border-black">
-                          <Play className="w-5 h-5 text-amber-400 fill-amber-400" />
+                          <Play className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400 fill-amber-400" />
                         </div>
                       ) : (
                         <img
@@ -1004,7 +1004,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                         />
                       )}
                     </div>
-                    <span className="text-[10px] text-gray-300 font-bold max-w-[60px] truncate">
+                    <span className="text-[9px] sm:text-[10px] text-gray-300 font-bold max-w-[55px] sm:max-w-[60px] truncate">
                       {story.caption || 'قصة'}
                     </span>
                   </div>
@@ -1014,61 +1014,61 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           </div>
 
           {/* Navigation Tabs */}
-          <div className="flex items-center justify-around border-t border-b border-white/10 mt-6 sticky top-0 bg-[#0d1117]/95 backdrop-blur-xl z-20">
+          <div className="flex items-center justify-around border-t border-b border-white/10 mt-4 sm:mt-6 sticky top-0 bg-[#0d1117]/95 backdrop-blur-xl z-20">
             <button
               onClick={() => setActiveTab('grid')}
-              className={`flex-1 flex flex-col items-center py-3.5 relative transition-colors ${
+              className={`flex-1 flex flex-col items-center py-2 sm:py-3.5 relative transition-colors ${
                 activeTab === 'grid' ? 'text-white' : 'text-gray-500'
               }`}
             >
-              <div className="flex items-center gap-1.5">
-                <Grid className="w-5 h-5" />
-                <span className="text-xs font-black">الريلز ({userReels.length})</span>
+              <div className="flex items-center gap-1 sm:gap-1.5">
+                <Grid className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="text-[11px] sm:text-xs font-black">الريلز ({userReels.length})</span>
               </div>
               {activeTab === 'grid' && (
-                <motion.div layoutId="profileTab" className="absolute bottom-0 w-12 h-1 bg-[#e50914] rounded-full shadow-[0_0_8px_#e50914]" />
+                <motion.div layoutId="profileTab" className="absolute bottom-0 w-8 sm:w-12 h-0.5 sm:h-1 bg-[#e50914] rounded-full shadow-[0_0_8px_#e50914]" />
               )}
             </button>
             <button
               onClick={() => setActiveTab('repost')}
-              className={`flex-1 flex flex-col items-center py-3.5 relative transition-colors ${
+              className={`flex-1 flex flex-col items-center py-2 sm:py-3.5 relative transition-colors ${
                 activeTab === 'repost' ? 'text-white' : 'text-gray-500'
               }`}
             >
-              <div className="flex items-center gap-1.5">
-                <Repeat className="w-5 h-5" />
-                <span className="text-xs font-black">إعادة النشر</span>
+              <div className="flex items-center gap-1 sm:gap-1.5">
+                <Repeat className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="text-[11px] sm:text-xs font-black">إعادة النشر</span>
               </div>
               {activeTab === 'repost' && (
-                <motion.div layoutId="profileTab" className="absolute bottom-0 w-12 h-1 bg-[#e50914] rounded-full shadow-[0_0_8px_#e50914]" />
+                <motion.div layoutId="profileTab" className="absolute bottom-0 w-8 sm:w-12 h-0.5 sm:h-1 bg-[#e50914] rounded-full shadow-[0_0_8px_#e50914]" />
               )}
             </button>
             <button
               onClick={() => setActiveTab('saved')}
-              className={`flex-1 flex flex-col items-center py-3.5 relative transition-colors ${
+              className={`flex-1 flex flex-col items-center py-2 sm:py-3.5 relative transition-colors ${
                 activeTab === 'saved' ? 'text-white' : 'text-gray-500'
               }`}
             >
-              <div className="flex items-center gap-1.5">
-                <Bookmark className="w-5 h-5" />
-                <span className="text-xs font-black">المحفوظات</span>
+              <div className="flex items-center gap-1 sm:gap-1.5">
+                <Bookmark className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="text-[11px] sm:text-xs font-black">المحفوظات</span>
               </div>
               {activeTab === 'saved' && (
-                <motion.div layoutId="profileTab" className="absolute bottom-0 w-12 h-1 bg-[#e50914] rounded-full shadow-[0_0_8px_#e50914]" />
+                <motion.div layoutId="profileTab" className="absolute bottom-0 w-8 sm:w-12 h-0.5 sm:h-1 bg-[#e50914] rounded-full shadow-[0_0_8px_#e50914]" />
               )}
             </button>
             <button
               onClick={() => setActiveTab('liked')}
-              className={`flex-1 flex flex-col items-center py-3.5 relative transition-colors ${
+              className={`flex-1 flex flex-col items-center py-2 sm:py-3.5 relative transition-colors ${
                 activeTab === 'liked' ? 'text-white' : 'text-gray-500'
               }`}
             >
-              <div className="flex items-center gap-1.5">
-                <Heart className="w-5 h-5" />
-                <span className="text-xs font-black">المعجب بها</span>
+              <div className="flex items-center gap-1 sm:gap-1.5">
+                <Heart className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="text-[11px] sm:text-xs font-black">المعجب بها</span>
               </div>
               {activeTab === 'liked' && (
-                <motion.div layoutId="profileTab" className="absolute bottom-0 w-12 h-1 bg-[#e50914] rounded-full shadow-[0_0_8px_#e50914]" />
+                <motion.div layoutId="profileTab" className="absolute bottom-0 w-8 sm:w-12 h-0.5 sm:h-1 bg-[#e50914] rounded-full shadow-[0_0_8px_#e50914]" />
               )}
             </button>
           </div>

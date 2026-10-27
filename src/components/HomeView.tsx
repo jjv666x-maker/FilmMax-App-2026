@@ -36,7 +36,8 @@ import {
   Compass,
   Rocket,
   ShieldAlert,
-  Heart
+  Heart,
+  LayoutGrid
 } from 'lucide-react';
 
 export const HomeView: React.FC = () => {
@@ -61,6 +62,7 @@ export const HomeView: React.FC = () => {
   const [isCineJournalOpen, setIsCineJournalOpen] = useState<boolean>(false);
   const [isWorldMapOpen, setIsWorldMapOpen] = useState<boolean>(false);
   const [displayLimit, setDisplayLimit] = useState<number>(48);
+  const [libraryViewMode, setLibraryViewMode] = useState<'grid' | 'track'>('grid');
 
   const categories = ['الكل', 'أفلام', 'مسلسلات', 'أكشن', 'خيال علمي', 'دراما', 'جريمة', 'رعب', 'عائلي'];
 
@@ -87,16 +89,16 @@ export const HomeView: React.FC = () => {
     : movies.filter(m => m.genres?.includes(activeCategory));
 
   return (
-    <div className="space-y-8 pb-12">
+    <div className="space-y-4 sm:space-y-6 md:space-y-8 pb-10 sm:pb-12 max-w-full overflow-x-hidden">
       {/* Category Filter Chips */}
-      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+      <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar py-1 max-w-full">
         {categories.map(cat => (
           <button
             key={cat}
             onClick={() => setActiveCategory(cat)}
-            className={`px-4 py-2 rounded-2xl text-xs font-black whitespace-nowrap transition-all ${
+            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl text-[11px] sm:text-xs font-black whitespace-nowrap transition-all ${
               activeCategory === cat
-                ? 'bg-[#e50914] text-white shadow-lg shadow-[#e50914]/25 scale-105'
+                ? 'bg-[#e50914] text-white shadow-lg shadow-[#e50914]/25 scale-102 sm:scale-105'
                 : 'bg-[#121620] text-gray-400 hover:text-gray-900 dark:hover:text-white border border-white/5 shadow-sm'
             }`}
           >
@@ -104,6 +106,29 @@ export const HomeView: React.FC = () => {
           </button>
         ))}
       </div>
+
+      {/* Category Filter Active View: Auto-Grid */}
+      {activeCategory !== 'الكل' && (
+        <section className="space-y-3 sm:space-y-4 pt-1 sm:pt-2">
+          <div className="flex items-center justify-between border-b border-white/10 pb-2 sm:pb-3">
+            <h2 className="text-base sm:text-xl font-black text-white flex items-center gap-2">
+              <span>قسم: {activeCategory}</span>
+              <span className="text-xs text-amber-400 font-bold">({filteredCategoryMovies.length} عمل)</span>
+            </h2>
+            <button
+              onClick={() => setActiveCategory('الكل')}
+              className="text-xs text-gray-400 hover:text-white bg-white/5 px-2.5 py-1 rounded-xl border border-white/5"
+            >
+              عرض الرئيسية
+            </button>
+          </div>
+          <div className="auto-grid-movies">
+            {filteredCategoryMovies.map((movie, idx) => (
+              <MovieCard key={`cat-grid-${movie.id}-${idx}`} movie={movie} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Main Hero Spotlight */}
       <HeroBanner />
@@ -554,49 +579,49 @@ export const HomeView: React.FC = () => {
       )}
 
       {/* Featured Full Episodes & Seasons Section */}
-      <section className="space-y-4 bg-gradient-to-r from-red-950/30 via-[#121622] to-amber-950/20 p-5 sm:p-6 rounded-3xl border border-red-500/20 shadow-2xl">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-4">
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-[#e50914]/20 border border-[#e50914]/40 text-[#e50914] flex items-center justify-center shrink-0 shadow-lg">
-              <Clapperboard className="w-5 h-5" />
+      <section className="space-y-3 sm:space-y-4 bg-gradient-to-r from-red-950/30 via-[#121622] to-amber-950/20 p-3.5 sm:p-5 md:p-6 rounded-2xl sm:rounded-3xl border border-red-500/20 shadow-2xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-3 sm:pb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-[#e50914]/20 border border-[#e50914]/40 text-[#e50914] flex items-center justify-center shrink-0 shadow-lg">
+              <Clapperboard className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base sm:text-xl font-black text-white">الحلقات الكاملة والمواسم HD 🎬</h2>
-                <span className="bg-[#e50914] text-white text-[10px] font-black px-2.5 py-0.5 rounded-full shadow">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <h2 className="text-sm sm:text-base md:text-xl font-black text-white">الحلقات الكاملة والمواسم HD 🎬</h2>
+                <span className="bg-[#e50914] text-white text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded-full shadow">
                   حلقات كاملة
                 </span>
               </div>
-              <p className="text-xs text-gray-300">شاهد كافة حلقات المسلسلات العالمية والمحلية بجودة 4K وبدون تقطيع</p>
+              <p className="text-[11px] sm:text-xs text-gray-300">شاهد كافة حلقات المسلسلات العالمية والمحلية بجودة 4K وبدون تقطيع</p>
             </div>
           </div>
 
           <button
             onClick={() => navigateTo('search')}
-            className="text-xs text-amber-400 hover:text-amber-300 font-black flex items-center gap-1 self-start sm:self-auto bg-amber-500/10 px-3 py-1.5 rounded-xl border border-amber-500/20"
+            className="text-[11px] sm:text-xs text-amber-400 hover:text-amber-300 font-black flex items-center gap-1 self-start sm:self-auto bg-amber-500/10 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl border border-amber-500/20"
           >
             <span>استعرض جميع الحلقات</span>
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
         </div>
 
         {/* Full Episodes Cards Horizontal Carousel */}
-        <div className="flex items-stretch gap-4 overflow-x-auto no-scrollbar py-2 px-1 snap-x snap-mandatory">
+        <div className="flex items-stretch gap-3 sm:gap-4 overflow-x-auto no-scrollbar py-1.5 sm:py-2 px-1 snap-x snap-mandatory">
           {seriesList.map((series, sIdx) => {
             const episodes = series.episodes || [];
             return (
               <div
                 key={`series-${series.id}-${sIdx}`}
-                className="flex-shrink-0 w-[280px] sm:w-[320px] md:w-[350px] snap-start glass-card p-4 rounded-2xl border border-white/10 hover:border-red-500/40 transition-all flex flex-col justify-between space-y-3 group bg-[#0d1017]/80"
+                className="flex-shrink-0 w-[240px] sm:w-[300px] md:w-[350px] snap-start glass-card p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-white/10 hover:border-red-500/40 transition-all flex flex-col justify-between space-y-2.5 sm:space-y-3 group bg-[#0d1017]/80"
               >
-                <div className="flex items-start gap-3">
+                <div className="flex items-start gap-2.5 sm:gap-3">
                   <img
                     src={series.poster}
                     alt={series.title}
-                    className="w-16 h-24 rounded-xl object-cover border border-white/15 shrink-0 shadow-md group-hover:scale-105 transition-transform"
+                    className="w-14 h-20 sm:w-16 sm:h-24 rounded-lg sm:rounded-xl object-cover border border-white/15 shrink-0 shadow-md group-hover:scale-105 transition-transform"
                   />
-                  <div className="min-w-0 space-y-1">
-                    <span className="text-[10px] text-amber-400 font-bold bg-amber-500/15 px-2 py-0.5 rounded-md border border-amber-500/20 inline-block">
+                  <div className="min-w-0 space-y-0.5 sm:space-y-1">
+                    <span className="text-[9px] sm:text-[10px] text-amber-400 font-bold bg-amber-500/15 px-1.5 sm:px-2 py-0.5 rounded border border-amber-500/20 inline-block">
                       ★ {series.rating} • {series.duration || 'مواسم كاملة'}
                     </span>
                     <h3 className="text-sm font-black text-white truncate group-hover:text-[#e50914] transition-colors">
@@ -668,47 +693,83 @@ export const HomeView: React.FC = () => {
       />
 
       {/* Massive Library Explorer - 500+ Horizontal Track Showcase */}
-      <section className="space-y-6 pt-12 border-t border-white/5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#121620]/50 p-6 rounded-3xl border border-white/5 shadow-inner">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-[#e50914]/20 border border-[#e50914]/40 text-[#e50914] flex items-center justify-center shadow-xl">
-              <Film className="w-7 h-7" />
+      <section className="space-y-4 sm:space-y-6 pt-6 sm:pt-12 border-t border-white/5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 bg-[#121620]/50 p-3.5 sm:p-6 rounded-2xl sm:rounded-3xl border border-white/5 shadow-inner">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-[#e50914]/20 border border-[#e50914]/40 text-[#e50914] flex items-center justify-center shrink-0 shadow-xl">
+              <Film className="w-5 h-5 sm:w-7 sm:h-7" />
             </div>
             <div>
-              <h2 className="text-xl sm:text-3xl font-black text-white">استكشف المكتبة الضخمة 🎬</h2>
-              <p className="text-sm text-gray-400 font-bold">أكثر من 500+ تريلر وفيلم حقيقي متصل بـ TMDB & YouTube بتمرير أفقي سلس</p>
+              <h2 className="text-base sm:text-2xl md:text-3xl font-black text-white">استكشف المكتبة الضخمة 🎬</h2>
+              <p className="text-xs sm:text-sm text-gray-400 font-bold">أكثر من 500+ عمل بتصميم متجاوب تلقائي يتكيف مع كل شاشة</p>
             </div>
+          </div>
+
+          {/* Toggle between Auto-Grid and Horizontal Track */}
+          <div className="flex items-center gap-1.5 bg-black/40 p-1 rounded-xl border border-white/10 self-start sm:self-auto">
+            <button
+              onClick={() => setLibraryViewMode('grid')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                libraryViewMode === 'grid'
+                  ? 'bg-[#e50914] text-white shadow'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              <span>شبكة تلقائية</span>
+            </button>
+            <button
+              onClick={() => setLibraryViewMode('track')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                libraryViewMode === 'track'
+                  ? 'bg-[#e50914] text-white shadow'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <Compass className="w-3.5 h-3.5" />
+              <span>شريط أفقي</span>
+            </button>
           </div>
         </div>
 
-        {/* Horizontal Infinite Track Showcase */}
-        <HorizontalMovieTrack
-          title="تصفح كافة أعمال المكتبة الشاملة (أفقي سلس) 🍿"
-          subtitle="مرّر بالسحب أو اللمس أو الأسهم لاستكشاف مئات الأفلام"
-          icon={<Compass className="w-4 h-4 text-[#e50914]" />}
-          badge={`معروض ${Math.min(displayLimit, movies.length)} فيلم`}
-          badgeColor="bg-[#e50914]"
-          movies={movies.slice(0, displayLimit)}
-        />
+        {/* Display either Auto-Grid or Horizontal Track */}
+        {libraryViewMode === 'grid' ? (
+          <div className="space-y-4">
+            <div className="auto-grid-movies">
+              {movies.slice(0, displayLimit).map((movie, index) => (
+                <MovieCard key={`massive-grid-${movie.id}-${index}`} movie={movie} />
+              ))}
+            </div>
+          </div>
+        ) : (
+          <HorizontalMovieTrack
+            title="تصفح كافة أعمال المكتبة الشاملة (أفقي سلس) 🍿"
+            subtitle="مرّر بالسحب أو اللمس أو الأسهم لاستكشاف مئات الأفلام"
+            icon={<Compass className="w-4 h-4 text-[#e50914]" />}
+            badge={`معروض ${Math.min(displayLimit, movies.length)} فيلم`}
+            badgeColor="bg-[#e50914]"
+            movies={movies.slice(0, displayLimit)}
+          />
+        )}
 
-        <div className="flex flex-col items-center justify-center gap-4 py-10 border-b border-white/5">
+        <div className="flex flex-col items-center justify-center gap-3 sm:gap-4 py-6 sm:py-10 border-b border-white/5">
           <button 
             onClick={async () => {
               await loadMoreMovies();
               setDisplayLimit(prev => prev + 36);
             }}
             disabled={isLoadingMore}
-            className="group relative px-10 py-4 rounded-2xl bg-[#e50914] hover:bg-red-500 text-white font-black text-lg transition-all shadow-2xl shadow-red-900/40 active:scale-95 disabled:opacity-50 overflow-hidden"
+            className="group relative px-6 sm:px-10 py-2.5 sm:py-3.5 md:py-4 rounded-xl sm:rounded-2xl bg-[#e50914] hover:bg-red-500 text-white font-black text-xs sm:text-base md:text-lg transition-all shadow-xl shadow-red-900/40 active:scale-95 disabled:opacity-50 overflow-hidden"
           >
-            <div className="relative z-10 flex items-center gap-3">
+            <div className="relative z-10 flex items-center gap-2 sm:gap-3">
               {isLoadingMore ? (
                 <>
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   <span>جاري جلب المزيد من الأفلام...</span>
                 </>
               ) : (
                 <>
-                  <TrendingUp className="w-6 h-6 group-hover:translate-y-[-2px] transition-transform" />
+                  <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 group-hover:translate-y-[-2px] transition-transform" />
                   <span>تحميل دفعة إضافية (+36 فيلم)</span>
                 </>
               )}
@@ -716,7 +777,7 @@ export const HomeView: React.FC = () => {
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
           </button>
           
-          <p className="text-xs text-gray-500 font-bold uppercase tracking-widest animate-pulse">
+          <p className="text-[10px] sm:text-xs text-gray-500 font-bold uppercase tracking-widest animate-pulse">
             تصفح أفقي فائق السلاسة • جودة 4K • تحديث مباشر
           </p>
         </div>

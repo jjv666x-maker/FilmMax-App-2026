@@ -931,19 +931,41 @@ async function startServer() {
 
   // ===========================================================================
 
-  // TMDB Proxy Endpoints
+  // TMDB Proxy Endpoints with Server-Side In-Memory Cache
+  const tmdbServerCache = new Map<string, { data: any; expiry: number }>();
+
   app.get("/api/tmdb/*", async (req, res) => {
+    const endpoint = req.params[0];
+    const queryParams = req.query;
+    const cacheKey = `${endpoint}_${JSON.stringify(queryParams)}`;
+    const now = Date.now();
+
+    // Check server in-memory cache (15 minutes TTL)
+    const cached = tmdbServerCache.get(cacheKey);
+    if (cached && now < cached.expiry) {
+      return res.json(cached.data);
+    }
+
     try {
-      const endpoint = req.params[0];
-      const queryParams = req.query;
       const apiKey = process.env.TMDB_API_KEY || "0a8bc15ab94b56a8244de54c87c8f661";
 
       const response = await axios.get(`https://api.themoviedb.org/3/${endpoint}`, {
         params: { ...queryParams, api_key: apiKey },
+        timeout: 10000, // 10s timeout to prevent hanging requests
+      });
+
+      // Save to cache (15 minutes TTL)
+      tmdbServerCache.set(cacheKey, {
+        data: response.data,
+        expiry: now + 15 * 60 * 1000,
       });
 
       res.json(response.data);
     } catch (error: any) {
+      // If error occurs but we have stale cache, serve stale cache gracefully
+      if (cached?.data) {
+        return res.json(cached.data);
+      }
       console.error("TMDB Proxy Error:", error.response?.data || error.message);
       res.status(500).json({ error: "Failed to fetch from TMDB" });
     }

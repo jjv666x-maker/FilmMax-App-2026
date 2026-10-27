@@ -22,9 +22,10 @@ class ResilienceCache {
   private circuitState: CircuitState = "CLOSED";
   private failureCount: number = 0;
   private lastFailureTime: number = 0;
-  private readonly failureThreshold: number = 3;
-  private readonly resetTimeoutMs: number = 15000; // 15 seconds
-  private readonly defaultTtlMs: number = 1000 * 60 * 30; // 30 minutes
+  private readonly failureThreshold: number = 6;
+  private readonly resetTimeoutMs: number = 10000; // 10 seconds
+  private readonly defaultTtlMs: number = 1000 * 60 * 60; // 60 minutes
+  private readonly defaultTimeoutMs: number = 12000; // 12 seconds
 
   /**
    * Execute an async fetcher wrapped by the Circuit Breaker and Multi-Tier Cache.
@@ -32,7 +33,8 @@ class ResilienceCache {
   public async executeWithResilience<T>(
     cacheKey: string,
     fetcher: () => Promise<T>,
-    ttlMs: number = this.defaultTtlMs
+    ttlMs: number = this.defaultTtlMs,
+    timeoutMs: number = this.defaultTimeoutMs
   ): Promise<T> {
     const cached = this.get<T>(cacheKey);
 
@@ -54,12 +56,12 @@ class ResilienceCache {
       return cached;
     }
 
-    // 3. Attempt to fetch fresh data
+    // 3. Attempt to fetch fresh data with timer cleanup
+    let timer: any = null;
     try {
-      // Timeout protection (Netflix Zuul timeout limit: 4000ms)
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Timeout (Circuit Breaker Tripped)")), 4000)
-      );
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("Timeout (Circuit Breaker Tripped)")), timeoutMs);
+      });
 
       const result = await Promise.race([fetcher(), timeoutPromise]);
 
@@ -75,6 +77,10 @@ class ResilienceCache {
         return cached;
       }
       throw error;
+    } finally {
+      if (timer) {
+        clearTimeout(timer);
+      }
     }
   }
 

@@ -34,7 +34,7 @@ export const BottomNav: React.FC = () => {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 flex justify-center pointer-events-none safe-area-pb px-0 sm:px-4 md:px-6">
-      <nav className="pointer-events-auto w-full max-w-full sm:max-w-md md:max-w-lg lg:max-w-xl sm:mb-2.5 sm:rounded-3xl bg-[#0c0f15]/95 backdrop-blur-2xl border-t sm:border border-white/10 sm:border-white/15 px-2 sm:px-4 py-1.5 flex items-center justify-around shadow-2xl transition-all">
+      <nav className="pointer-events-auto w-full max-w-full sm:max-w-md md:max-w-xl h-12 sm:h-14 md:h-18 sm:mb-2 sm:rounded-2xl bg-[#0c0f15]/95 backdrop-blur-2xl border-t sm:border border-white/10 sm:border-white/15 px-1 sm:px-3 py-0.5 sm:py-1 flex items-center justify-around shadow-2xl transition-all">
         {NAV_ITEMS.map(item => {
           const active = isNavActive(item.id);
           const Icon = item.icon;
@@ -45,23 +45,23 @@ export const BottomNav: React.FC = () => {
               onClick={() => {
                 navigateTo(item.id);
               }}
-              className={`flex flex-col items-center justify-center py-1 px-2.5 sm:px-4 rounded-2xl transition-all relative ${
+              className={`flex flex-col items-center justify-center py-0.5 sm:py-1 px-1 sm:px-3 rounded-xl transition-all relative ${
                 active
                   ? 'text-[#e50914] font-black'
-                  : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 font-medium'
+                  : 'text-gray-400 hover:text-gray-200 font-medium'
               }`}
             >
               <div className="relative">
-                <Icon className={`w-5 h-5 sm:w-5 sm:h-5 transition-transform duration-200 ${active ? 'scale-110' : ''}`} />
+                <Icon className={`w-4 h-4 md:w-5 md:h-5 transition-transform duration-200 ${active ? 'scale-110' : ''}`} />
                 {item.id === 'live' && (
-                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full animate-ping" />
+                  <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-red-500 rounded-full animate-ping" />
                 )}
               </div>
-              <span className="text-[10px] sm:text-xs mt-1 transition-colors whitespace-nowrap">
+              <span className="text-[9px] sm:text-[10px] md:text-xs mt-0.5 transition-colors whitespace-nowrap">
                 {item.label}
               </span>
               {active && (
-                <span className="absolute bottom-0 w-5 sm:w-6 h-1 bg-[#e50914] rounded-full shadow-[0_0_8px_#e50914]" />
+                <span className="absolute bottom-0 w-3.5 sm:w-5 h-0.5 bg-[#e50914] rounded-full shadow-[0_0_8px_#e50914]" />
               )}
             </button>
           );

@@ -31,17 +31,22 @@ const GENRE_MAP: Record<number, string> = {
 
 export async function fetchFromTMDB(endpoint: string, params: Record<string, string> = {}): Promise<any> {
   const cacheKey = `tmdb_${endpoint}_${JSON.stringify(params)}`;
-  return resilienceCache.executeWithResilience(cacheKey, async () => {
-    const url = new URL(window.location.origin + API_BASE + (endpoint.startsWith('/') ? endpoint : `/${endpoint}`));
-    url.searchParams.set('language', TMDB_LANG);
-    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+  return resilienceCache.executeWithResilience(
+    cacheKey,
+    async () => {
+      const url = new URL(window.location.origin + API_BASE + (endpoint.startsWith('/') ? endpoint : `/${endpoint}`));
+      url.searchParams.set('language', TMDB_LANG);
+      Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
 
-    const res = await fetch(url.toString(), {
-      headers: { Accept: 'application/json' }
-    });
-    if (!res.ok) throw new Error(`TMDB HTTP ${res.status}`);
-    return await res.json();
-  });
+      const res = await fetch(url.toString(), {
+        headers: { Accept: 'application/json' }
+      });
+      if (!res.ok) throw new Error(`TMDB HTTP ${res.status}`);
+      return await res.json();
+    },
+    1000 * 60 * 60, // 1 hour TTL
+    12000 // 12 second timeout
+  );
 }
 
 // Map of popular known trailer YouTube keys to ensure 100% video playability
@@ -184,46 +189,52 @@ export function formatTMDBItem(item: any, isTv: boolean = false): Movie {
 }
 
 /**
- * Fetches 500+ items from TMDB by requesting multiple pages
+ * Fetches items from TMDB in controlled batches to avoid saturating browser connection pools
  */
-export async function fetchMassiveLibrary(pages: number = 25): Promise<Movie[]> {
+export async function fetchMassiveLibrary(pages: number = 6): Promise<Movie[]> {
   try {
-    const fetchPromises = [];
-    // Fetch multiple pages of popular movies and tv shows
-    for (let i = 1; i <= pages; i++) {
-      fetchPromises.push(fetchFromTMDB('/movie/popular', { page: i.toString() }));
-      fetchPromises.push(fetchFromTMDB('/tv/popular', { page: i.toString() }));
+    const allItems: Movie[] = [];
+    const batchSize = 2; // 2 pages per batch = 4 concurrent requests (2 movies, 2 tv)
+
+    for (let i = 1; i <= pages; i += batchSize) {
+      const batchPromises: Promise<any>[] = [];
+      for (let p = i; p < i + batchSize && p <= pages; p++) {
+        batchPromises.push(fetchFromTMDB('/movie/popular', { page: p.toString() }));
+        batchPromises.push(fetchFromTMDB('/tv/popular', { page: p.toString() }));
+      }
+
+      const batchResults = await Promise.allSettled(batchPromises);
+      batchResults.forEach((res, index) => {
+        if (res.status === 'fulfilled' && res.value?.results) {
+          const isTv = index % 2 !== 0;
+          allItems.push(...res.value.results.map((item: any) => formatTMDBItem(item, isTv)));
+        }
+      });
     }
 
-    const results = await Promise.all(fetchPromises);
-    const allItems: Movie[] = [];
+    if (allItems.length > 0) {
+      // Deduplicate
+      const seen = new Set<string>();
+      const deduplicated = allItems.filter(m => {
+        const key = `${m.id}-${m.type}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
 
-    results.forEach((res, index) => {
-      if (res?.results) {
-        const isTv = index % 2 !== 0; // Alternating between movie and tv in our promise array
-        allItems.push(...res.results.map((item: any) => formatTMDBItem(item, isTv)));
-      }
-    });
+      return deduplicated;
+    }
 
-    // Deduplicate
-    const seen = new Set<string>();
-    const deduplicated = allItems.filter(m => {
-      const key = `${m.id}-${m.type}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-
-    return deduplicated;
+    return INITIAL_MOVIES;
   } catch (err) {
-    console.error('Failed to fetch massive library:', err);
+    console.warn('Graceful catalog fallback to initial movies:', err);
     return INITIAL_MOVIES;
   }
 }
 
 export async function fetchAllMovies(): Promise<Movie[]> {
-  // Initially fetch 15 pages (= ~600 items across multiple genres)
-  return fetchMassiveLibrary(15);
+  // Fetch first 6 pages (~120 items) reliably without tripping network timeouts
+  return fetchMassiveLibrary(6);
 }
 
 export async function resolveTrailerKey(movie: Movie): Promise<string | undefined> {

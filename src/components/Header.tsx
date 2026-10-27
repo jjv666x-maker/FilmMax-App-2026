@@ -126,22 +126,23 @@ export const Header: React.FC = () => {
   };
 
   return (
-    <header className="sticky top-0 z-50 glass-header px-2.5 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-1.5 sm:gap-3 transition-all">
+    <header className="sticky top-0 z-50 glass-header px-2.5 sm:px-4 md:px-6 h-14 md:h-20 flex items-center justify-between gap-1.5 sm:gap-3 max-w-full overflow-hidden transition-all">
       {/* Brand Logo */}
       <button
         onClick={() => navigateTo('home')}
         className="hover:opacity-90 active:scale-95 transition-transform shrink-0"
         title="FilmMax Cinema"
       >
-        <AppLogo size="sm" showSubtitle={true} subtitleText="VIP" />
+        <AppLogo size="xs" showSubtitle={true} subtitleText="VIP" className="sm:hidden" />
+        <AppLogo size="sm" showSubtitle={true} subtitleText="VIP" className="hidden sm:flex" />
       </button>
 
       {/* Global Search Input with Voice & Clear */}
       <form
         onSubmit={handleSearchSubmit}
-        className="relative flex-1 min-w-[120px] max-w-xs sm:max-w-md mx-1 sm:mx-2 flex items-center bg-[#151922] dark:bg-[#151922] border border-white/10 rounded-full px-2.5 sm:px-3 py-1 sm:py-1.5 focus-within:border-[#e50914]/60 focus-within:ring-2 focus-within:ring-[#e50914]/20 transition-all shadow-inner"
+        className="relative flex-1 min-w-[100px] max-w-xs sm:max-w-md mx-1 sm:mx-2 flex items-center bg-[#151922] dark:bg-[#151922] border border-white/10 rounded-full px-2 sm:px-3 py-1 sm:py-1.5 focus-within:border-[#e50914]/60 focus-within:ring-2 focus-within:ring-[#e50914]/20 transition-all shadow-inner"
       >
-        <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 shrink-0 ml-1.5 sm:ml-2" />
+        <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 shrink-0 ml-1 sm:ml-1.5" />
         <input
           type="text"
           value={localSearch}
@@ -162,17 +163,17 @@ export const Header: React.FC = () => {
               setLocalSearch('');
               setSearchQuery('');
             }}
-            className="p-0.5 sm:p-1 text-gray-400 hover:text-white rounded-full transition-colors"
+            className="p-0.5 text-gray-400 hover:text-white rounded-full transition-colors"
             title="مسح"
           >
-            <X className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+            <X className="w-3 h-3" />
           </button>
         )}
 
         <button
           type="button"
           onClick={handleVoiceSearch}
-          className={`p-1 sm:p-1.5 rounded-full text-xs transition-all ${
+          className={`p-1 rounded-full text-xs transition-all ${
             isListening
               ? 'bg-[#e50914] text-white animate-pulse shadow-md shadow-[#e50914]/40'
               : 'text-gray-400 hover:text-[#e50914] hover:bg-white/5'
@@ -184,38 +185,36 @@ export const Header: React.FC = () => {
       </form>
 
       {/* Action Buttons */}
-      <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+      <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
         {/* AI Evolution Diamond Button (المطور الذكي) */}
         <button
           onClick={() => setIsEvolutionModalOpen(true)}
-          className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-yellow-600/10 border border-amber-500/35 text-[#f5c518] hover:border-amber-400 hover:shadow-lg hover:shadow-amber-500/10 active:scale-95 transition-all shrink-0"
+          className="flex items-center gap-1 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-yellow-600/10 border border-amber-500/35 text-[#f5c518] hover:border-amber-400 hover:shadow-lg hover:shadow-amber-500/10 active:scale-95 transition-all shrink-0"
           title="التطور الذكي AI"
         >
-          <Gem className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#f5c518] animate-pulse" />
-          <span className="text-[10px] sm:text-xs font-black tracking-tight whitespace-nowrap">AI الذكي</span>
+          <Gem className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#f5c518] animate-pulse" />
+          <span className="text-[9px] sm:text-[11px] font-black tracking-tight whitespace-nowrap">AI الذكي</span>
         </button>
-
-
 
         {/* FilmMax Premium VIP Crown Button (اشتراك VIP) */}
         <button
           onClick={() => setIsPremiumModalOpen(true)}
-          className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-[#e50914]/25 via-[#e50914]/15 to-[#ff4757]/10 border border-[#e50914]/40 text-white hover:border-[#e50914] hover:shadow-lg hover:shadow-[#e50914]/20 active:scale-95 transition-all shrink-0"
+          className="flex items-center gap-1 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-xl bg-gradient-to-r from-[#e50914]/25 via-[#e50914]/15 to-[#ff4757]/10 border border-[#e50914]/40 text-white hover:border-[#e50914] hover:shadow-lg hover:shadow-[#e50914]/20 active:scale-95 transition-all shrink-0"
           title="اشتراك VIP"
         >
-          <Crown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-yellow-400 drop-shadow" />
-          <span className="text-[10px] sm:text-xs font-black whitespace-nowrap">VIP</span>
+          <Crown className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-yellow-400 drop-shadow" />
+          <span className="text-[9px] sm:text-[11px] font-black whitespace-nowrap">VIP</span>
         </button>
 
         {/* Notifications */}
         <button
           onClick={() => setIsNotificationOpen(true)}
-          className="relative p-1.5 sm:p-2 rounded-xl text-gray-300 hover:text-white hover:bg-white/5 active:scale-95 transition-all"
+          className="relative p-1 sm:p-1.5 rounded-xl text-gray-300 hover:text-white hover:bg-white/5 active:scale-95 transition-all"
           title="الإشعارات"
         >
-          <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
+          <Bell className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           {unreadNotificationsCount > 0 && (
-            <span className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 w-3.5 h-3.5 sm:w-4 sm:h-4 bg-[#e50914] text-white text-[8px] sm:text-[9px] font-black rounded-full flex items-center justify-center border-2 border-[#07090d]">
+            <span className="absolute top-0 right-0 sm:top-0.5 sm:right-0.5 w-3 h-3 sm:w-3.5 sm:h-3.5 bg-[#e50914] text-white text-[7px] sm:text-[8px] font-black rounded-full flex items-center justify-center border border-[#07090d]">
               {unreadNotificationsCount}
             </span>
           )}

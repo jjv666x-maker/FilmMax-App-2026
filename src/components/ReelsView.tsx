@@ -709,7 +709,7 @@ export const ReelsView: React.FC = () => {
             {/* ========================================================================= */}
             {/* RIGHT-SIDE ACTION RAIL (Mockup #1) */}
             {/* ========================================================================= */}
-            <div className="absolute left-3 sm:left-4 bottom-14 sm:bottom-16 z-30 flex flex-col items-center gap-3.5">
+            <div className="absolute left-2.5 sm:left-4 bottom-[calc(var(--bottom-nav-height)+0.5rem)] z-30 flex flex-col items-center gap-2.5 sm:gap-3.5">
               
               {/* Creator Avatar & Red Follow Badge */}
               <div className="relative mb-1">
@@ -851,7 +851,7 @@ export const ReelsView: React.FC = () => {
             {/* ========================================================================= */}
             {/* BOTTOM INFO OVERLAY (Mockup #1) */}
             {/* ========================================================================= */}
-            <div className="absolute right-3 sm:right-5 bottom-14 sm:bottom-16 z-30 max-w-[75%] sm:max-w-[65%] text-right pointer-events-auto flex flex-col items-end gap-1.5">
+            <div className="absolute right-2.5 sm:right-5 bottom-[calc(var(--bottom-nav-height)+0.5rem)] z-30 max-w-[75%] sm:max-w-[65%] text-right pointer-events-auto flex flex-col items-end gap-1.5">
               
               {/* Creator Name + Blue Checkmark + Follow Button + Time */}
               <div className="flex items-center gap-2">

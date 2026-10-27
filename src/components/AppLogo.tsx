@@ -19,12 +19,12 @@ export const AppLogo: React.FC<AppLogoProps> = ({
 }) => {
   // Dimension and typography presets
   const sizeConfig = {
-    xs: { iconSize: 22, textClass: 'text-base tracking-tight', subClass: 'text-[8px] tracking-widest px-1 py-0.2' },
-    sm: { iconSize: 28, textClass: 'text-lg tracking-tight', subClass: 'text-[9px] tracking-widest px-1.5 py-0.5' },
-    md: { iconSize: 36, textClass: 'text-xl sm:text-2xl tracking-tighter', subClass: 'text-[10px] tracking-widest px-2 py-0.5' },
-    lg: { iconSize: 48, textClass: 'text-3xl sm:text-4xl tracking-tighter', subClass: 'text-xs tracking-[0.25em] px-2.5 py-0.5' },
-    xl: { iconSize: 64, textClass: 'text-4xl sm:text-5xl tracking-tighter', subClass: 'text-sm tracking-[0.3em] px-3 py-1' },
-    hero: { iconSize: 84, textClass: 'text-5xl sm:text-6xl lg:text-7xl tracking-tighter', subClass: 'text-xs sm:text-sm tracking-[0.35em] px-4 py-1' }
+    xs: { iconSize: 20, textClass: 'text-sm sm:text-base tracking-tight', subClass: 'text-[7px] sm:text-[8px] tracking-widest px-1 py-0.2' },
+    sm: { iconSize: 24, textClass: 'text-base sm:text-lg tracking-tight', subClass: 'text-[8px] sm:text-[9px] tracking-widest px-1.5 py-0.5' },
+    md: { iconSize: 30, textClass: 'text-lg sm:text-xl tracking-tighter', subClass: 'text-[9px] sm:text-[10px] tracking-widest px-1.5 py-0.5' },
+    lg: { iconSize: 38, textClass: 'text-2xl sm:text-3xl tracking-tighter', subClass: 'text-[10px] sm:text-xs tracking-[0.2em] px-2 py-0.5' },
+    xl: { iconSize: 48, textClass: 'text-3xl sm:text-4xl tracking-tighter', subClass: 'text-xs sm:text-sm tracking-[0.25em] px-2.5 py-1' },
+    hero: { iconSize: 64, textClass: 'text-4xl sm:text-5xl lg:text-6xl tracking-tighter', subClass: 'text-xs sm:text-sm tracking-[0.3em] px-3 py-1' }
   };
 
   const current = sizeConfig[size] || sizeConfig.md;

@@ -553,7 +553,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[9980] bg-[#07090e] overflow-y-auto custom-scrollbar flex flex-col items-center justify-center p-4 sm:p-6 select-none text-white">
+    <div className="fixed inset-0 z-[9980] bg-[#07090e] overflow-y-auto custom-scrollbar flex flex-col items-center justify-center p-2.5 sm:p-6 select-none text-white max-w-full overflow-x-hidden">
       {/* Cinematic Ambient Glow Background */}
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute top-10 right-10 w-[500px] h-[500px] bg-red-600/15 rounded-full blur-[140px]" />
@@ -562,39 +562,39 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
       </div>
 
       {/* Main Luxury Container */}
-      <div className="relative z-10 w-full max-w-xl my-auto space-y-6">
+      <div className="relative z-10 w-full max-w-xl my-auto space-y-3.5 sm:space-y-6 max-w-full overflow-hidden">
         {/* Brand Header */}
-        <div className="flex flex-col items-center text-center space-y-2">
-          <AppLogo size="lg" showSubtitle={true} subtitleText="ULTRA VIP PORTAL" animated={true} />
-          <p className="text-xs text-amber-200/80 font-bold tracking-wide">
+        <div className="flex flex-col items-center text-center space-y-1.5 sm:space-y-2">
+          <AppLogo size="md" showSubtitle={true} subtitleText="ULTRA VIP PORTAL" animated={true} />
+          <p className="text-[11px] sm:text-xs text-amber-200/80 font-bold tracking-wide">
             بوابتك الفاخرة لعالم السينما والمشاهدة بجودة 4K HDR & DOLBY ATMOS
           </p>
         </div>
 
         {/* Real-time 3D Live VIP Membership Pass Card Preview */}
-        <div className="glass-card p-5 rounded-3xl border-2 border-amber-400/40 bg-gradient-to-r from-amber-500/15 via-red-500/10 to-yellow-500/15 shadow-2xl relative overflow-hidden group">
+        <div className="glass-card p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl border sm:border-2 border-amber-400/40 bg-gradient-to-r from-amber-500/15 via-red-500/10 to-yellow-500/15 shadow-2xl relative overflow-hidden group">
           <div className="absolute -top-12 -right-12 w-32 h-32 bg-amber-400/20 rounded-full blur-2xl pointer-events-none" />
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             {/* User Avatar with Frame */}
-            <div className="flex items-center gap-3.5">
-              <div className="relative">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 via-red-500 to-yellow-500 text-black flex items-center justify-center text-2xl shadow-xl font-bold border-2 border-white/40">
+            <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
+              <div className="relative shrink-0">
+                <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-amber-400 via-red-500 to-yellow-500 text-black flex items-center justify-center text-lg sm:text-2xl shadow-xl font-bold border border-white/40">
                   {selectedAvatar.icon}
                 </div>
-                <span className="absolute -bottom-1 -right-1 text-[10px] bg-black text-amber-300 font-black px-1.5 py-0.5 rounded-md border border-amber-400/40">
+                <span className="absolute -bottom-1 -right-1 text-[8px] sm:text-[10px] bg-black text-amber-300 font-black px-1 sm:px-1.5 py-0.2 sm:py-0.5 rounded-md border border-amber-400/40">
                   VIP
                 </span>
               </div>
 
-              <div className="text-right">
-                <div className="flex items-center gap-1.5">
-                  <h3 className="text-sm font-black text-white">
+              <div className="text-right min-w-0">
+                <div className="flex items-center gap-1">
+                  <h3 className="text-xs sm:text-sm font-black text-white truncate">
                     {name.trim() || (authMode === 'signup' ? 'عضو VIP السينمائي' : 'حساب سينما VIP')}
                   </h3>
-                  <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" />
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse shrink-0" />
                 </div>
-                <p className="text-[11px] text-amber-300 font-mono font-bold">
+                <p className="text-[10px] sm:text-[11px] text-amber-300 font-mono font-bold truncate">
                   {email.trim() || 'member@filmmax.vip'}
                 </p>
               </div>
@@ -602,10 +602,10 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
 
             {/* VIP Seal Badge */}
             <div className="text-left shrink-0">
-              <span className="text-[10px] font-mono bg-amber-400 text-black font-black px-2.5 py-1 rounded-xl shadow-md block">
+              <span className="text-[9px] sm:text-[10px] font-mono bg-amber-400 text-black font-black px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg sm:rounded-xl shadow-md block">
                 4K ULTRA READY
               </span>
-              <span className="text-[9px] text-gray-300 font-mono block mt-1">
+              <span className="text-[8px] sm:text-[9px] text-gray-300 font-mono block mt-0.5 sm:mt-1">
                 صلاحية غير محدودة ♾️
               </span>
             </div>
@@ -613,26 +613,26 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
         </div>
 
         {/* Main Form Glass Card */}
-        <div className="glass-card p-6 sm:p-8 rounded-3xl border border-white/15 shadow-2xl space-y-6 bg-black/60 backdrop-blur-2xl">
+        <div className="glass-card p-3.5 sm:p-6 md:p-8 rounded-2xl sm:rounded-3xl border border-white/15 shadow-2xl space-y-3.5 sm:space-y-6 bg-black/60 backdrop-blur-2xl max-w-full">
           {/* Tab Switcher (إنشاء حساب VIP | تسجيل الدخول | دخول OTP) */}
-          <div className="flex p-1.5 rounded-2xl bg-black/60 border border-white/10 gap-1">
+          <div className="flex p-1 rounded-xl sm:rounded-2xl bg-black/60 border border-white/10 gap-1">
             <button
               type="button"
               onClick={() => setAuthMode('signup')}
-              className={`flex-1 py-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${
+              className={`flex-1 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-black transition-all flex items-center justify-center gap-1 ${
                 authMode === 'signup'
                   ? 'bg-gradient-to-r from-[#e50914] via-[#ff2e3b] to-amber-500 text-white shadow-xl shadow-red-500/30'
                   : 'text-gray-400 hover:text-white'
               }`}
             >
-              <Crown className="w-3.5 h-3.5 text-amber-300" />
+              <Crown className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-300" />
               <span>إنشاء حساب VIP</span>
             </button>
 
             <button
               type="button"
               onClick={() => setAuthMode('login')}
-              className={`flex-1 py-3 rounded-xl text-xs font-black transition-all ${
+              className={`flex-1 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-black transition-all ${
                 authMode === 'login'
                   ? 'bg-gradient-to-r from-[#e50914] via-[#ff2e3b] to-amber-500 text-white shadow-xl shadow-red-500/30'
                   : 'text-gray-400 hover:text-white'
@@ -644,7 +644,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
             <button
               type="button"
               onClick={() => setAuthMode('otp')}
-              className={`flex-1 py-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${
+              className={`flex-1 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-black transition-all flex items-center justify-center gap-1 ${
                 authMode === 'otp'
                   ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-black shadow-xl shadow-amber-500/30'
                   : 'text-gray-400 hover:text-white'
@@ -656,29 +656,29 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
           </div>
 
           {/* Quick Access Action Bar (Biometric & Fast Guest Login) */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3">
             <button
               type="button"
               onClick={handleBiometricAuth}
-              className="p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/15 flex items-center justify-center gap-2 text-xs font-bold text-gray-200 transition-all active:scale-95 group shadow-sm"
+              className="p-2 sm:p-3 rounded-xl sm:rounded-2xl bg-white/5 hover:bg-white/10 border border-white/15 flex items-center justify-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs font-bold text-gray-200 transition-all active:scale-95 group shadow-sm"
             >
-              <Fingerprint className="w-4 h-4 text-emerald-400 group-hover:scale-110 transition-transform" />
-              <span>دخول ببصمة الوجه FaceID</span>
+              <Fingerprint className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 group-hover:scale-110 transition-transform" />
+              <span>دخول FaceID</span>
             </button>
 
             <button
               type="button"
               onClick={handleGuestLogin}
-              className="p-3 rounded-2xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 flex items-center justify-center gap-2 text-xs font-bold text-amber-300 transition-all active:scale-95 shadow-sm"
+              className="p-2 sm:p-3 rounded-xl sm:rounded-2xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 flex items-center justify-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs font-bold text-amber-300 transition-all active:scale-95 shadow-sm"
             >
-              <Sparkles className="w-4 h-4 text-amber-400" />
-              <span>دخول سريع كزائر VIP</span>
+              <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
+              <span>دخول كزائر VIP</span>
             </button>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <div className="flex-1 h-px bg-white/10" />
-            <span className="text-[10px] text-gray-400 font-mono uppercase tracking-widest font-bold">
+            <span className="text-[9px] sm:text-[10px] text-gray-400 font-mono uppercase tracking-widest font-bold">
               {authMode === 'otp' ? 'الدخول عبر الهاتف' : 'أو أدخل بيانات الحساب'}
             </span>
             <div className="flex-1 h-px bg-white/10" />
@@ -686,20 +686,20 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
 
           {/* ================= MODE 1 & 2: SIGNUP / LOGIN FORM ================= */}
           {(authMode === 'signup' || authMode === 'login') && (
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
               {/* Profile Avatar Selector (Only for Signup) */}
               {authMode === 'signup' && (
-                <div className="space-y-2">
-                  <label className="text-[11px] font-bold text-amber-300 block">اختر أيقونة وشخصية حسابك VIP:</label>
-                  <div className="grid grid-cols-6 gap-2">
+                <div className="space-y-1.5 sm:space-y-2">
+                  <label className="text-[10px] sm:text-[11px] font-bold text-amber-300 block">اختر أيقونة وشخصية حسابك VIP:</label>
+                  <div className="grid grid-cols-6 gap-1.5 sm:gap-2">
                     {VIP_AVATARS.map(avatar => (
                       <button
                         key={avatar.id}
                         type="button"
                         onClick={() => setSelectedAvatar(avatar)}
-                        className={`p-2.5 rounded-2xl border text-xl flex items-center justify-center transition-all active:scale-95 ${
+                        className={`p-2 sm:p-2.5 rounded-xl sm:rounded-2xl border text-lg sm:text-xl flex items-center justify-center transition-all active:scale-95 ${
                           selectedAvatar.id === avatar.id
-                            ? 'bg-amber-400/20 border-amber-400 shadow-lg scale-110'
+                            ? 'bg-amber-400/20 border-amber-400 shadow-lg scale-105 sm:scale-110'
                             : 'bg-white/5 border-white/10 hover:bg-white/10'
                         }`}
                         title={avatar.name}
@@ -714,16 +714,16 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
               {/* Name Field (Signup Only) */}
               {authMode === 'signup' && (
                 <div>
-                  <label className="text-[11px] font-bold text-gray-300 block mb-1">الاسم الكامل / اللقب السينمائي</label>
+                  <label className="text-[10px] sm:text-[11px] font-bold text-gray-300 block mb-0.5 sm:mb-1">الاسم الكامل / اللقب السينمائي</label>
                   <div className="relative flex items-center">
-                    <User className="absolute right-3.5 w-4 h-4 text-gray-400 pointer-events-none" />
+                    <User className="absolute right-3 sm:right-3.5 w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 pointer-events-none" />
                     <input
                       type="text"
                       required={authMode === 'signup'}
                       value={name}
                       onChange={e => setName(e.target.value)}
                       placeholder="مثال: أحمد السينمائي"
-                      className="w-full bg-[#121620] border border-white/10 rounded-2xl pr-10 pl-4 py-3 text-xs text-white placeholder-gray-500 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 outline-none transition-all font-medium"
+                      className="w-full bg-[#121620] border border-white/10 rounded-xl sm:rounded-2xl pr-9 pl-3 sm:pr-10 sm:pl-4 py-2.5 sm:py-3 text-xs text-white placeholder-gray-500 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 outline-none transition-all font-medium"
                     />
                   </div>
                 </div>
@@ -731,16 +731,16 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
 
               {/* Email Field */}
               <div>
-                <label className="text-[11px] font-bold text-gray-300 block mb-1">البريد الإلكتروني</label>
+                <label className="text-[10px] sm:text-[11px] font-bold text-gray-300 block mb-0.5 sm:mb-1">البريد الإلكتروني</label>
                 <div className="relative flex items-center">
-                  <Mail className="absolute right-3.5 w-4 h-4 text-gray-400 pointer-events-none" />
+                  <Mail className="absolute right-3 sm:right-3.5 w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 pointer-events-none" />
                   <input
                     type="email"
                     required
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                     placeholder="name@example.com"
-                    className="w-full bg-[#121620] border border-white/10 rounded-2xl pr-10 pl-4 py-3 text-xs text-white placeholder-gray-500 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 outline-none transition-all font-medium dir-ltr text-right"
+                    className="w-full bg-[#121620] border border-white/10 rounded-xl sm:rounded-2xl pr-9 pl-3 sm:pr-10 sm:pl-4 py-2.5 sm:py-3 text-xs text-white placeholder-gray-500 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 outline-none transition-all font-medium dir-ltr text-right"
                   />
                 </div>
               </div>
@@ -748,15 +748,15 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
               {/* Phone Field (Signup Only) */}
               {authMode === 'signup' && (
                 <div>
-                  <label className="text-[11px] font-bold text-gray-300 block mb-1">رقم الهاتف (اختياري)</label>
+                  <label className="text-[10px] sm:text-[11px] font-bold text-gray-300 block mb-0.5 sm:mb-1">رقم الهاتف (اختياري)</label>
                   <div className="relative flex items-center">
-                    <Phone className="absolute right-3.5 w-4 h-4 text-gray-400 pointer-events-none" />
+                    <Phone className="absolute right-3 sm:right-3.5 w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 pointer-events-none" />
                     <input
                       type="tel"
                       value={phone}
                       onChange={e => setPhone(e.target.value)}
                       placeholder="+966 50 123 4567"
-                      className="w-full bg-[#121620] border border-white/10 rounded-2xl pr-10 pl-4 py-3 text-xs text-white placeholder-gray-500 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 outline-none transition-all font-medium dir-ltr text-right"
+                      className="w-full bg-[#121620] border border-white/10 rounded-xl sm:rounded-2xl pr-9 pl-3 sm:pr-10 sm:pl-4 py-2.5 sm:py-3 text-xs text-white placeholder-gray-500 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 outline-none transition-all font-medium dir-ltr text-right"
                     />
                   </div>
                 </div>
@@ -764,34 +764,34 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
 
               {/* Password Field */}
               <div>
-                <label className="text-[11px] font-bold text-gray-300 block mb-1">كلمة المرور</label>
+                <label className="text-[10px] sm:text-[11px] font-bold text-gray-300 block mb-0.5 sm:mb-1">كلمة المرور</label>
                 <div className="relative flex items-center">
-                  <Lock className="absolute right-3.5 w-4 h-4 text-gray-400 pointer-events-none" />
+                  <Lock className="absolute right-3 sm:right-3.5 w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 pointer-events-none" />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     required
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full bg-[#121620] border border-white/10 rounded-2xl pr-10 pl-10 py-3 text-xs text-white placeholder-gray-500 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 outline-none transition-all font-medium dir-ltr text-right"
+                    className="w-full bg-[#121620] border border-white/10 rounded-xl sm:rounded-2xl pr-9 pl-9 sm:pr-10 sm:pl-10 py-2.5 sm:py-3 text-xs text-white placeholder-gray-500 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 outline-none transition-all font-medium dir-ltr text-right"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute left-3.5 text-gray-400 hover:text-white"
+                    className="absolute left-3 sm:left-3.5 text-gray-400 hover:text-white"
                   >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showPassword ? <EyeOff className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
                   </button>
                 </div>
 
                 {/* Password Strength Meter (Signup Only) */}
                 {authMode === 'signup' && password && (
-                  <div className="space-y-1 pt-1.5">
-                    <div className="flex items-center justify-between text-[10px]">
+                  <div className="space-y-1 pt-1">
+                    <div className="flex items-center justify-between text-[9px] sm:text-[10px]">
                       <span className="text-gray-400">قوة كلمة المرور:</span>
                       <span className="font-bold text-white">{strength.label}</span>
                     </div>
-                    <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                    <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
                       <div
                         className={`h-full ${strength.color} transition-all duration-300`}
                         style={{ width: `${(strength.score / 3) * 100}%` }}
@@ -803,9 +803,9 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
 
               {/* Favorite Genre Selection Chips (Signup Only) */}
               {authMode === 'signup' && (
-                <div className="space-y-2 pt-1">
-                  <label className="text-[11px] font-bold text-amber-300 block">حدد اهتماماتك السينمائية المفضلة:</label>
-                  <div className="flex flex-wrap gap-1.5">
+                <div className="space-y-1.5 sm:space-y-2 pt-0.5">
+                  <label className="text-[10px] sm:text-[11px] font-bold text-amber-300 block">حدد اهتماماتك السينمائية المفضلة:</label>
+                  <div className="flex flex-wrap gap-1 sm:gap-1.5">
                     {GENRE_OPTIONS.map(genre => {
                       const isSelected = selectedGenres.includes(genre.id);
                       return (
@@ -813,7 +813,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
                           key={genre.id}
                           type="button"
                           onClick={() => toggleGenre(genre.id)}
-                          className={`px-3 py-1.5 rounded-xl text-[11px] font-bold border transition-all ${
+                          className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-[10px] sm:text-[11px] font-bold border transition-all ${
                             isSelected
                               ? 'bg-gradient-to-r from-red-600 to-amber-500 border-amber-400 text-white shadow-md'
                               : 'bg-white/5 border-white/10 text-gray-300 hover:text-white'
@@ -828,22 +828,22 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
               )}
 
               {/* Remember Me & Forgot Password Bar */}
-              <div className="flex items-center justify-between text-xs pt-1">
-                <label className="flex items-center gap-2 cursor-pointer text-gray-300">
+              <div className="flex items-center justify-between text-[11px] sm:text-xs pt-1">
+                <label className="flex items-center gap-1.5 sm:gap-2 cursor-pointer text-gray-300">
                   <input
                     type="checkbox"
                     checked={rememberMe}
                     onChange={e => setRememberMe(e.target.checked)}
-                    className="w-4 h-4 rounded text-[#e50914] bg-[#121620] border-white/20 focus:ring-0"
+                    className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded text-[#e50914] bg-[#121620] border-white/20 focus:ring-0"
                   />
-                  <span>تذكر بياناتي على هذا الجهاز</span>
+                  <span>تذكر بياناتي</span>
                 </label>
 
                 {authMode === 'login' && (
                   <button
                     type="button"
                     onClick={() => setIsForgotModalOpen(true)}
-                    className="text-[11px] text-amber-400 hover:text-amber-300 font-bold"
+                    className="text-[10px] sm:text-[11px] text-amber-400 hover:text-amber-300 font-bold"
                   >
                     نسيت كلمة المرور؟
                   </button>
@@ -854,14 +854,14 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full mt-2 py-4 px-6 rounded-2xl bg-gradient-to-r from-[#e50914] via-[#ff2e3b] to-amber-500 hover:from-[#ff1f2d] hover:to-amber-400 text-white font-black text-sm flex items-center justify-center gap-2 shadow-xl shadow-red-500/30 transition-all active:scale-98 disabled:opacity-50"
+                className="w-full mt-2 py-3 sm:py-3.5 md:py-4 px-4 sm:px-6 rounded-xl sm:rounded-2xl bg-gradient-to-r from-[#e50914] via-[#ff2e3b] to-amber-500 hover:from-[#ff1f2d] hover:to-amber-400 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xl shadow-red-500/30 transition-all active:scale-98 disabled:opacity-50"
               >
                 {isLoading ? (
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 ) : (
                   <>
                     <span>{authMode === 'signup' ? 'تأكيد التسجيل وانضمام VIP 🎬✨' : 'تسجيل الدخول للمنصة 🚀'}</span>
-                    <ArrowLeft className="w-4 h-4" />
+                    <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </>
                 )}
               </button>
@@ -870,17 +870,17 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
 
           {/* ================= MODE 3: MOBILE OTP FAST PASS ================= */}
           {authMode === 'otp' && (
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               <div>
-                <label className="text-[11px] font-bold text-gray-300 block mb-1">رقم الجوال لتلقي الرمز (OTP)</label>
+                <label className="text-[10px] sm:text-[11px] font-bold text-gray-300 block mb-0.5 sm:mb-1">رقم الجوال لتلقي الرمز (OTP)</label>
                 <div className="relative flex items-center">
-                  <Smartphone className="absolute right-3.5 w-4 h-4 text-amber-400 pointer-events-none" />
+                  <Smartphone className="absolute right-3 sm:right-3.5 w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 pointer-events-none" />
                   <input
                     type="tel"
                     value={phone}
                     onChange={e => setPhone(e.target.value)}
                     placeholder="+966 50 123 4567"
-                    className="w-full bg-[#121620] border border-white/10 rounded-2xl pr-10 pl-4 py-3 text-xs text-white placeholder-gray-500 focus:border-amber-400 outline-none font-bold dir-ltr text-right"
+                    className="w-full bg-[#121620] border border-white/10 rounded-xl sm:rounded-2xl pr-9 pl-3 sm:pr-10 sm:pl-4 py-2.5 sm:py-3 text-xs text-white placeholder-gray-500 focus:border-amber-400 outline-none font-bold dir-ltr text-right"
                   />
                 </div>
               </div>
@@ -890,18 +890,18 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
                   type="button"
                   onClick={handleSendOtp}
                   disabled={isLoading}
-                  className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-black text-xs rounded-2xl shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
+                  className="w-full py-2.5 sm:py-3.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-black text-xs rounded-xl sm:rounded-2xl shadow-lg active:scale-95 transition-all flex items-center justify-center gap-1.5 sm:gap-2"
                 >
                   {isLoading ? 'جاري الإرسال...' : 'إرسال رمز التحقق (OTP) 📩'}
                 </button>
               ) : (
-                <div className="space-y-4 animate-fadeIn">
-                  <div className="text-center space-y-1">
+                <div className="space-y-3 sm:space-y-4 animate-fadeIn">
+                  <div className="text-center space-y-0.5 sm:space-y-1">
                     <span className="text-xs text-amber-300 font-bold block">أدخل رمز التحقق المكون من 4 أرقام:</span>
-                    <span className="text-[10px] text-gray-400 block">(الرمز للتجربة: 1234)</span>
+                    <span className="text-[9px] sm:text-[10px] text-gray-400 block">(الرمز للتجربة: 1234)</span>
                   </div>
 
-                  <div className="flex justify-center gap-3 dir-ltr">
+                  <div className="flex justify-center gap-2 sm:gap-3 dir-ltr">
                     {[0, 1, 2, 3].map(idx => (
                       <input
                         key={idx}
@@ -918,7 +918,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
                             (e.target.nextElementSibling as HTMLInputElement).focus();
                           }
                         }}
-                        className="w-12 h-12 rounded-2xl bg-[#121620] border-2 border-amber-400 text-center font-mono font-black text-xl text-amber-300 focus:border-white outline-none shadow-md"
+                        className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-[#121620] border-2 border-amber-400 text-center font-mono font-black text-lg sm:text-xl text-amber-300 focus:border-white outline-none shadow-md"
                       />
                     ))}
                   </div>
@@ -927,7 +927,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
                     type="button"
                     onClick={handleVerifyOtp}
                     disabled={isLoading}
-                    className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-black font-black text-xs rounded-2xl shadow-xl active:scale-95 transition-all"
+                    className="w-full py-2.5 sm:py-3.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-black font-black text-xs rounded-xl sm:rounded-2xl shadow-xl active:scale-95 transition-all"
                   >
                     {isLoading ? 'جاري التحقق...' : 'تأكيد الدخول عبر الهاتف 🛡️'}
                   </button>

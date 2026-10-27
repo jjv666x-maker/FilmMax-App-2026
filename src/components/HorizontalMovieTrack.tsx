@@ -112,29 +112,29 @@ export const HorizontalMovieTrack: React.FC<HorizontalMovieTrackProps> = ({
     <section className="space-y-3.5 relative group/section">
       {/* Header with Title, Icon & Navigation Controls */}
       <div className="flex items-center justify-between px-1">
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           {icon && (
-            <div className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white shrink-0 shadow-sm">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white shrink-0 shadow-sm">
               {icon}
             </div>
           )}
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-base sm:text-xl font-black text-white leading-tight">{title}</h2>
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <h2 className="text-sm sm:text-lg md:text-xl font-black text-white leading-tight">{title}</h2>
               {badge && (
-                <span className={`${badgeColor} text-white text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded-full shadow-sm`}>
+                <span className={`${badgeColor} text-white text-[8px] sm:text-[10px] font-black px-1.5 sm:px-2 py-0.5 rounded-full shadow-sm`}>
                   {badge}
                 </span>
               )}
             </div>
             {subtitle && (
-              <p className="text-[11px] text-gray-400 font-medium line-clamp-1">{subtitle}</p>
+              <p className="text-[10px] sm:text-[11px] text-gray-400 font-medium line-clamp-1">{subtitle}</p>
             )}
           </div>
         </div>
 
         {/* Action & Nav Buttons */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           {/* Scroll Progress Bar Track */}
           <div className="hidden sm:block w-16 h-1 bg-white/10 rounded-full overflow-hidden">
             <div
@@ -147,27 +147,27 @@ export const HorizontalMovieTrack: React.FC<HorizontalMovieTrackProps> = ({
           <div className="flex items-center gap-1">
             <button
               onClick={() => handleScroll('right')}
-              className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 text-white flex items-center justify-center transition-all hover:scale-105 active:scale-95 disabled:opacity-30 disabled:pointer-events-none shadow-sm"
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 text-white flex items-center justify-center transition-all hover:scale-105 active:scale-95 disabled:opacity-30 disabled:pointer-events-none shadow-sm"
               title="السابق"
             >
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
             <button
               onClick={() => handleScroll('left')}
-              className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 text-white flex items-center justify-center transition-all hover:scale-105 active:scale-95 disabled:opacity-30 disabled:pointer-events-none shadow-sm"
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 text-white flex items-center justify-center transition-all hover:scale-105 active:scale-95 disabled:opacity-30 disabled:pointer-events-none shadow-sm"
               title="التالي"
             >
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
           </div>
 
           {onViewMore && (
             <button
               onClick={onViewMore}
-              className="text-xs text-gray-400 hover:text-white flex items-center gap-1 font-bold transition-colors bg-white/5 px-2.5 py-1.5 rounded-xl border border-white/5 hover:border-white/10 mr-1"
+              className="text-[10px] sm:text-xs text-gray-400 hover:text-white flex items-center gap-0.5 sm:gap-1 font-bold transition-colors bg-white/5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-xl border border-white/5 hover:border-white/10"
             >
               <span>المزيد</span>
-              <ChevronLeft className="w-3.5 h-3.5" />
+              <ChevronLeft className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
             </button>
           )}
         </div>
@@ -176,8 +176,8 @@ export const HorizontalMovieTrack: React.FC<HorizontalMovieTrackProps> = ({
       {/* Horizontal Scrolling Track */}
       <div className="relative">
         {/* Left/Right Subtle Vignette Gradient Shadows */}
-        <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-[#0b0e14]/80 to-transparent z-10 hidden sm:block" />
-        <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-[#0b0e14]/80 to-transparent z-10 hidden sm:block" />
+        <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-6 sm:w-8 bg-gradient-to-l from-[#0b0e14]/80 to-transparent z-10 hidden sm:block" />
+        <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-6 sm:w-8 bg-gradient-to-r from-[#0b0e14]/80 to-transparent z-10 hidden sm:block" />
 
         <div
           ref={scrollContainerRef}
@@ -185,7 +185,7 @@ export const HorizontalMovieTrack: React.FC<HorizontalMovieTrackProps> = ({
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUpOrLeave}
           onMouseLeave={handleMouseUpOrLeave}
-          className={`flex items-stretch gap-3 sm:gap-4 overflow-x-auto no-scrollbar py-2 px-1 scroll-smooth snap-x snap-mandatory ${
+          className={`flex items-stretch gap-2.5 sm:gap-4 overflow-x-auto no-scrollbar py-1.5 sm:py-2 px-1 scroll-smooth snap-x snap-mandatory ${
             isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'
           }`}
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
@@ -194,7 +194,7 @@ export const HorizontalMovieTrack: React.FC<HorizontalMovieTrackProps> = ({
             movies.map((movie, index) => (
               <div
                 key={`track-poster-${movie.id}-${index}`}
-                className="flex-shrink-0 w-[145px] sm:w-[170px] md:w-[195px] snap-start transition-transform duration-300 hover:scale-[1.03]"
+                className="flex-shrink-0 w-[130px] sm:w-[160px] md:w-[190px] snap-start transition-transform duration-300 hover:scale-[1.02]"
               >
                 <MovieCard movie={movie} />
               </div>
@@ -209,9 +209,9 @@ export const HorizontalMovieTrack: React.FC<HorizontalMovieTrackProps> = ({
                   setActiveMovie(movie);
                   navigateTo('player');
                 }}
-                className="flex-shrink-0 w-[240px] sm:w-[280px] md:w-[320px] snap-start group relative cursor-pointer"
+                className="flex-shrink-0 w-[210px] sm:w-[260px] md:w-[320px] snap-start group relative cursor-pointer"
               >
-                <div className="relative aspect-video rounded-2xl overflow-hidden border border-white/10 shadow-lg bg-gray-900">
+                <div className="relative aspect-video rounded-xl sm:rounded-2xl overflow-hidden border border-white/10 shadow-lg bg-gray-900">
                   <img
                     src={movie.backdrop || movie.poster}
                     alt={movie.title}
@@ -221,22 +221,22 @@ export const HorizontalMovieTrack: React.FC<HorizontalMovieTrackProps> = ({
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80 group-hover:opacity-95 transition-opacity" />
                   
                   {movie.quality && (
-                    <div className="absolute top-2 right-2 px-2 py-0.5 bg-black/60 backdrop-blur-md rounded-md text-[10px] font-black text-amber-400 border border-amber-500/30">
+                    <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 px-1.5 py-0.5 bg-black/60 backdrop-blur-md rounded text-[9px] sm:text-[10px] font-black text-amber-400 border border-amber-500/30">
                       {movie.quality}
                     </div>
                   )}
 
                   <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <div className="w-11 h-11 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 text-white shadow-xl group-hover:scale-110 transition-transform">
-                      <Play className="w-5 h-5 fill-current ml-0.5" />
+                    <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 text-white shadow-xl group-hover:scale-110 transition-transform">
+                      <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-current ml-0.5" />
                     </div>
                   </div>
 
-                  <div className="absolute bottom-2.5 right-3 left-3">
-                    <span className="text-[10px] text-amber-400 font-bold block mb-0.5">
+                  <div className="absolute bottom-2 right-2.5 left-2.5 sm:bottom-2.5 sm:right-3 sm:left-3">
+                    <span className="text-[9px] sm:text-[10px] text-amber-400 font-bold block mb-0.5">
                       ★ {movie.rating} • {movie.year}
                     </span>
-                    <h3 className="text-xs sm:text-sm font-black text-white truncate">{movie.title}</h3>
+                    <h3 className="text-[11px] sm:text-xs md:text-sm font-black text-white truncate">{movie.title}</h3>
                   </div>
                 </div>
               </div>

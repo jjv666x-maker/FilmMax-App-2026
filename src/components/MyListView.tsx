@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { MovieCard } from './MovieCard';
 import { Bookmark, Play, Clock, ArrowUpDown, Heart, Film, Tv, Trash2, Download, CheckCircle2, AlertCircle, X } from 'lucide-react';
 
 export const MyListView: React.FC = () => {
@@ -35,18 +36,18 @@ export const MyListView: React.FC = () => {
   return (
     <div className="space-y-6 pb-12">
       {/* Header Banner */}
-      <div className="glass-card rounded-3xl p-6 sm:p-8 border border-white/10 relative overflow-hidden flex items-center justify-between shadow-2xl">
+      <div className="glass-card rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 border border-white/10 relative overflow-hidden flex items-center justify-between shadow-2xl">
         <div className="relative z-10 space-y-1">
-          <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
+          <h1 className="text-xl sm:text-2xl md:text-4xl font-black text-white tracking-tight">
             قائمتي ومتابعاتي
           </h1>
-          <p className="text-xs sm:text-sm text-gray-400 max-w-md">
+          <p className="text-[11px] sm:text-xs md:text-sm text-gray-400 max-w-md">
             كل الأفلام والمسلسلات التي حفظتها مع استكمال المشاهدة من آخر ثانية
           </p>
         </div>
 
-        <div className="relative z-10 w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-[#e50914] to-[#7f060b] text-white flex items-center justify-center shadow-xl border border-[#ff3b49] shrink-0">
-          <Bookmark className="w-6 h-6 sm:w-8 sm:h-8 fill-white" />
+        <div className="relative z-10 w-10 h-10 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-[#e50914] to-[#7f060b] text-white flex items-center justify-center shadow-xl border border-[#ff3b49] shrink-0">
+          <Bookmark className="w-5 h-5 sm:w-7 sm:h-7 fill-white" />
         </div>
 
         {/* Ambient background glow */}
@@ -142,7 +143,7 @@ export const MyListView: React.FC = () => {
           </div>
 
         {watchHistory.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,260px),1fr))] gap-2.5 sm:gap-3">
             {watchHistory.slice(0, 3).map((item, idx) => (
               <div
                 key={`history-${item.movie.id}-${idx}`}
@@ -204,7 +205,7 @@ export const MyListView: React.FC = () => {
           </div>
 
           {downloads.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,260px),1fr))] gap-2.5 sm:gap-3">
               {downloads.map(item => (
                 <div
                   key={item.id}
@@ -288,53 +289,9 @@ export const MyListView: React.FC = () => {
           </div>
 
           {sortedFavorites.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="auto-grid-movies">
               {sortedFavorites.map(movie => (
-                <div
-                  key={`fav-${movie.id}`}
-                  onClick={() => navigateTo('details', movie)}
-                  className="glass-card p-3 rounded-2xl border border-white/10 flex items-center gap-3.5 cursor-pointer group"
-                >
-                  <div className="relative w-16 h-22 sm:w-20 sm:h-26 rounded-xl overflow-hidden shrink-0 bg-gray-900 shadow-md">
-                    <img
-                      src={movie.poster}
-                      alt={movie.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                      loading="lazy"
-                    />
-                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Play className="w-6 h-6 fill-white text-white" />
-                    </div>
-                  </div>
-
-                  <div className="flex-1 min-w-0 text-right">
-                    <div className="flex items-center gap-1.5 text-[10px] text-amber-400 font-bold mb-1">
-                      {movie.type === 'مسلسل' ? <Tv className="w-3 h-3" /> : <Film className="w-3 h-3" />}
-                      <span>{movie.type}</span>
-                      <span>•</span>
-                      <span>★ {movie.rating}</span>
-                    </div>
-
-                    <h3 className="text-xs sm:text-sm font-bold text-white truncate group-hover:text-[#e50914] transition-colors">
-                      {movie.title}
-                    </h3>
-
-                    <p className="text-xs text-gray-400 line-clamp-1 mt-1 font-normal">
-                      {movie.overview}
-                    </p>
-                  </div>
-
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleFavorite(movie.id);
-                    }}
-                    className="p-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-[#e50914] border border-red-500/20 active:scale-90 transition-all shrink-0"
-                    title="إزالة من قائمتي"
-                  >
-                    <Heart className="w-4 h-4 fill-[#e50914]" />
-                  </button>
-                </div>
+                <MovieCard key={`fav-${movie.id}`} movie={movie} />
               ))}
             </div>
           ) : (

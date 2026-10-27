@@ -136,7 +136,7 @@ const AppContent: React.FC = () => {
 
   return (
     <div
-      className={`min-h-screen ${themeClasses} relative overflow-x-hidden flex flex-col font-sans selection:bg-[#e50914] selection:text-white transition-colors duration-300`}
+      className={`min-h-screen ${themeClasses} relative max-w-full overflow-x-hidden flex flex-col font-sans selection:bg-[#e50914] selection:text-white transition-colors duration-300`}
     >
       {/* Frosted Glass Radial Background Highlights */}
       <div className="fixed inset-0 pointer-events-none z-0">
@@ -166,10 +166,10 @@ const AppContent: React.FC = () => {
 
       {/* Main View Area */}
       <main
-        className={`flex-1 relative z-10 transition-all duration-300 w-full ${
+        className={`flex-1 relative z-10 transition-all duration-300 w-full max-w-full overflow-x-hidden ${
           isFullBleedScreen
             ? 'p-0'
-            : 'max-w-full lg:max-w-7xl mx-auto px-2 sm:px-4 md:px-6 py-3 sm:py-6 pb-28 sm:pb-32'
+            : 'max-w-full lg:max-w-7xl mx-auto px-2 sm:px-4 md:px-6 py-2 sm:py-4 md:py-6 pb-20 sm:pb-28'
         }`}
       >
         {renderActiveScreen()}
