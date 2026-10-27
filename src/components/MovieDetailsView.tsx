@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { MovieCard } from './MovieCard';
 import {
@@ -31,7 +31,9 @@ export const MovieDetailsView: React.FC = () => {
     navigateTo,
     isFavorite,
     toggleFavorite,
+    downloads,
     addDownload,
+    playDownloadedMovie,
     setIsShareModalOpen,
     setShareTargetMovie,
     showToast,
@@ -40,10 +42,12 @@ export const MovieDetailsView: React.FC = () => {
 
   const currentMovie = activeMovie || movies[0];
   const favorite = isFavorite(currentMovie.id);
+  const isDownloaded = downloads?.some(d => d.movieId === currentMovie.id);
 
   const [activeTab, setActiveTab] = useState<'overview' | 'cast' | 'specs' | 'reviews'>('overview');
   const [userRating, setUserRating] = useState<number>(5);
   const [newReview, setNewReview] = useState<string>('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState<boolean>(false);
   const [reviewsList, setReviewsList] = useState<Array<{ id: string; author: string; text: string; rating: number; date: string }>>([
     {
       id: 'rev-1',
@@ -70,7 +74,8 @@ export const MovieDetailsView: React.FC = () => {
 
   const handleReviewSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newReview.trim()) return;
+    if (!newReview.trim() || isSubmittingReview) return;
+    setIsSubmittingReview(true);
     const item = {
       id: `rev-${Date.now()}`,
       author: 'أنت (مشترك VIP)',
@@ -81,9 +86,26 @@ export const MovieDetailsView: React.FC = () => {
     setReviewsList([item, ...reviewsList]);
     setNewReview('');
     showToast('تمت إضافة تقييمك ورأيك بنجاح ⭐');
+    setTimeout(() => setIsSubmittingReview(false), 800);
   };
 
-  const similarMovies = movies.filter(m => m.id !== currentMovie.id).slice(0, 6);
+  const similarMovies = useMemo(() => {
+    const currentGenres = new Set(currentMovie.genres || []);
+    return movies
+      .filter(m => m.id !== currentMovie.id)
+      .map(m => {
+        let score = 0;
+        (m.genres || []).forEach(g => {
+          if (currentGenres.has(g)) score += 3;
+        });
+        if (m.type === currentMovie.type) score += 1;
+        score += ((m.matchScore || 85) / 20);
+        return { movie: m, score };
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 6)
+      .map(item => item.movie);
+  }, [movies, currentMovie]);
 
   // Cast members fallback with realistic movie figures
   const castList = currentMovie.cast && currentMovie.cast.length > 0
@@ -181,59 +203,91 @@ export const MovieDetailsView: React.FC = () => {
           </p>
 
           {/* Action Buttons Row */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2">
-            {/* Play Button */}
-            <button
-              onClick={() => navigateTo('player', currentMovie)}
-              className="flex items-center justify-center gap-2 bg-[#e50914] hover:bg-[#ff1f2d] text-white font-black text-xs sm:text-sm py-3 px-4 rounded-xl shadow-lg shadow-[#e50914]/30 active:scale-95 transition-all col-span-2 sm:col-span-1"
-            >
-              <Play className="w-4 h-4 fill-white" />
-              <span>مشاهدة الفيلم</span>
-            </button>
+          <div className="space-y-2.5 pt-2">
+            {/* Primary Actions: Play & TV Cast */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {/* Play Button */}
+              <button
+                onClick={() => navigateTo('player', currentMovie)}
+                className="flex items-center justify-center gap-2 bg-[#e50914] hover:bg-[#ff1f2d] text-white font-black text-xs sm:text-sm py-3.5 px-5 rounded-xl shadow-lg shadow-[#e50914]/30 active:scale-95 transition-all"
+              >
+                <Play className="w-4 h-4 fill-white" />
+                <span>مشاهدة الفيلم الآن</span>
+              </button>
 
-            {/* Favorite Button */}
-            <button
-              onClick={() => toggleFavorite(currentMovie.id)}
-              className={`flex items-center justify-center gap-2 font-bold text-xs py-3 px-4 rounded-xl backdrop-blur-md border active:scale-95 transition-all ${
-                favorite
-                  ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
-                  : 'bg-white/10 border-white/15 text-white hover:bg-white/20'
-              }`}
-            >
-              <Heart className={`w-4 h-4 ${favorite ? 'fill-[#e50914] text-[#e50914]' : ''}`} />
-              <span>{favorite ? 'في قائمتك' : 'أضف لقائمتي'}</span>
-            </button>
+              {/* TV Remote Button */}
+              <button
+                onClick={() => setIsTVRemoteOpen(true)}
+                className="flex items-center justify-center gap-2 bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/40 text-indigo-300 font-bold text-xs sm:text-sm py-3.5 px-4 rounded-xl active:scale-95 transition-all"
+                title="البث المباشر والتحكم بالتلفاز"
+              >
+                <Tv className="w-4 h-4 text-indigo-400" />
+                <span>بث للشاشة والتلفاز 📺</span>
+              </button>
+            </div>
 
-            {/* Download Button */}
-            <button
-              onClick={() => addDownload(currentMovie, currentMovie.quality || '1080p FHD')}
-              className="flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 border border-white/15 text-white font-bold text-xs py-3 px-4 rounded-xl active:scale-95 transition-all"
-            >
-              <Download className="w-4 h-4" />
-              <span>تحميل أوفلاين</span>
-            </button>
+            {/* Utility Actions: Favorite, Download, Share */}
+            <div className="grid grid-cols-3 gap-2">
+              {/* Favorite Button */}
+              <button
+                onClick={() => toggleFavorite(currentMovie.id)}
+                className={`flex items-center justify-center gap-1.5 font-bold text-xs py-2.5 px-3 rounded-xl backdrop-blur-md border active:scale-95 transition-all ${
+                  favorite
+                    ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                    : 'bg-white/10 border-white/15 text-white hover:bg-white/20'
+                }`}
+              >
+                <Heart className={`w-4 h-4 ${favorite ? 'fill-[#e50914] text-[#e50914]' : ''}`} />
+                <span>{favorite ? 'في قائمتك' : 'أضف لقائمتي'}</span>
+              </button>
 
-            {/* TV Remote Button */}
-            <button
-              onClick={() => setIsTVRemoteOpen(true)}
-              className="flex items-center justify-center gap-2 bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/40 text-indigo-300 font-bold text-xs py-3 px-4 rounded-xl active:scale-95 transition-all"
-              title="البث المباشر والتحكم بالتلفاز"
-            >
-              <Tv className="w-4 h-4 text-indigo-400" />
-              <span>بث TV 📺</span>
-            </button>
+              {/* Download Button */}
+              <button
+                onClick={() => {
+                  if (isDownloaded) {
+                    const dlItem = downloads.find(d => d.movieId === currentMovie.id);
+                    if (dlItem) playDownloadedMovie(dlItem);
+                    else showToast('الفيلم متوفر في التنزيلات وجاهز للأوفلاين 📥');
+                  } else {
+                    addDownload(currentMovie, currentMovie.quality || '1080p FHD');
+                  }
+                }}
+                className={`flex items-center justify-center gap-1.5 border font-bold text-xs py-2.5 px-3 rounded-xl active:scale-95 transition-all ${
+                  isDownloaded
+                    ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30'
+                    : 'bg-white/10 border-white/15 text-white hover:bg-white/20'
+                }`}
+                title={isDownloaded ? 'مشاهدة بدون إنترنت' : 'تحميل أوفلاين'}
+              >
+                {isDownloaded ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Download className="w-4 h-4" />}
+                <span>{isDownloaded ? 'محمّل أوفلاين' : 'تحميل أوفلاين'}</span>
+              </button>
 
-            {/* Share Button */}
-            <button
-              onClick={() => {
-                setShareTargetMovie(currentMovie);
-                setIsShareModalOpen(true);
-              }}
-              className="flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 border border-white/15 text-white font-bold text-xs py-3 px-4 rounded-xl active:scale-95 transition-all"
-            >
-              <Share2 className="w-4 h-4" />
-              <span>مشاركة</span>
-            </button>
+              {/* Share Button */}
+              <button
+                onClick={() => {
+                  setShareTargetMovie(currentMovie);
+                  setIsShareModalOpen(true);
+                }}
+                className="flex items-center justify-center gap-1.5 bg-white/10 hover:bg-white/20 border border-white/15 text-white font-bold text-xs py-2.5 px-3 rounded-xl active:scale-95 transition-all"
+              >
+                <Share2 className="w-4 h-4" />
+                <span>مشاركة</span>
+              </button>
+
+              {/* Reels & Clips Bridge */}
+              <button
+                onClick={() => {
+                  navigateTo("reels");
+                  showToast(`استعراض ريلز وتريلرات: ${currentMovie.title} 📱`);
+                }}
+                className="flex items-center justify-center gap-1.5 bg-white/10 hover:bg-white/20 border border-white/15 text-white font-bold text-xs py-2.5 px-3 rounded-xl active:scale-95 transition-all"
+                title="شاهد ريلز وتريلرات العمل"
+              >
+                <Film className="w-4 h-4 text-[#e50914]" />
+                <span>ريلز وتريلرات</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>

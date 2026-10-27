@@ -22,5 +22,10 @@
     },
     "allowImportingTsExtensions": true,
     "noEmit": true
-  }
+  },
+  "exclude": [
+    "public/streams",
+    "dist",
+    "node_modules"
+  ]
 }

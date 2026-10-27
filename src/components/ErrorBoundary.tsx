@@ -1,5 +1,6 @@
 import React, { ErrorInfo, ReactNode } from 'react';
 import { ShieldAlert, RefreshCw, Home } from 'lucide-react';
+import { telemetry } from '../services/telemetry/sentryClient';
 
 interface Props {
   children: ReactNode;
@@ -28,6 +29,9 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('[FilmMax Security Boundary] Caught error:', error, errorInfo);
+    try {
+      telemetry.captureException(error, { componentStack: errorInfo.componentStack });
+    } catch {}
   }
 
   private handleReload = () => {

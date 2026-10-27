@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { searchMoviesWithElasticIndex } from '../services/searchIndexer';
 import { useApp } from '../context/AppContext';
 import { MovieCard } from './MovieCard';
 import { Search, Mic, MicOff, X, Sparkles, Filter } from 'lucide-react';
@@ -16,20 +17,10 @@ export const SearchView: React.FC = () => {
 
   const genres = ['الكل', 'أفلام', 'مسلسلات', 'أكشن', 'خيال علمي', 'دراما', 'جريمة', 'رعب', 'الأعلى تقييماً'];
 
-  const allFilteredMovies = movies.filter(movie => {
-    const matchesQuery = !searchQuery.trim() ||
-      movie.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      movie.overview.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      movie.genres.some(g => g.toLowerCase().includes(searchQuery.toLowerCase()));
-
-    if (!matchesQuery) return false;
-
-    if (selectedGenre === 'الكل') return true;
-    if (selectedGenre === 'أفلام') return movie.type === 'فيلم';
-    if (selectedGenre === 'مسلسلات') return movie.type === 'مسلسل';
-    if (selectedGenre === 'الأعلى تقييماً') return Number(movie.rating) >= 8.7;
-    return movie.genres.includes(selectedGenre);
-  });
+  // Netflix Elasticsearch-style Multi-Token Relevance Search
+  const allFilteredMovies = useMemo(() => {
+    return searchMoviesWithElasticIndex(movies, searchQuery, selectedGenre);
+  }, [movies, searchQuery, selectedGenre]);
 
   const handleVoiceSearch = () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;

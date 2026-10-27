@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppLogo } from './AppLogo';
 import { useApp } from '../context/AppContext';
 import {
@@ -52,7 +52,7 @@ const GENRE_OPTIONS = [
 ];
 
 export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
-  const { updateUserProfile, showToast } = useApp();
+  const { updateUserProfile, showToast, navigateTo } = useApp();
 
   // Auth Method Tabs: 'signup' | 'login' | 'otp'
   const [authMode, setAuthMode] = useState<'signup' | 'login' | 'otp'>('signup');
@@ -89,55 +89,408 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
 
   const strength = getPasswordStrength();
 
-  // Genre Toggle
+  // 4. Permanent Storage: Load saved preferences & credentials from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedProfileStr = localStorage.getItem('userProfile');
+      if (savedProfileStr) {
+        const saved = JSON.parse(savedProfileStr);
+        if (saved) {
+          if (saved.selectedGenreIds && Array.isArray(saved.selectedGenreIds) && saved.selectedGenreIds.length > 0) {
+            setSelectedGenres(saved.selectedGenreIds);
+          }
+          if (saved.email && !email) {
+            setEmail(saved.email);
+          }
+          if (saved.name && !name) {
+            setName(saved.name);
+          }
+          if (saved.phone && !phone) {
+            setPhone(saved.phone);
+          }
+          if (saved.avatar) {
+            const av = VIP_AVATARS.find(a => a.icon === saved.avatar);
+            if (av) setSelectedAvatar(av);
+          }
+        }
+      }
+
+      // Check remember email
+      const rememberedEmail = localStorage.getItem('filmmax_remember_email');
+      if (rememberedEmail && !email) {
+        setEmail(rememberedEmail);
+      }
+    } catch {}
+  }, []);
+
+  // 4. Permanent Storage: Genre Toggle with instant State & localStorage sync
   const toggleGenre = (genreId: string) => {
+    let updated: string[];
     if (selectedGenres.includes(genreId)) {
       if (selectedGenres.length > 1) {
-        setSelectedGenres(selectedGenres.filter(g => g !== genreId));
+        updated = selectedGenres.filter(g => g !== genreId);
       } else {
         showToast('يرجى اختيار تصنيف سينمائي واحد على الأقل 🎬');
+        return;
       }
     } else {
-      setSelectedGenres([...selectedGenres, genreId]);
+      updated = [...selectedGenres, genreId];
+    }
+    setSelectedGenres(updated);
+
+    // Save genres preference in localStorage if a profile exists
+    try {
+      const savedProfileStr = localStorage.getItem('userProfile');
+      if (savedProfileStr) {
+        const prof = JSON.parse(savedProfileStr);
+        const genreNames = updated.map(gid => GENRE_OPTIONS.find(g => g.id === gid)?.name || gid);
+        prof.selectedGenreIds = updated;
+        prof.favoriteGenres = genreNames;
+        prof.favoriteGenre = genreNames[0] || prof.favoriteGenre;
+        localStorage.setItem('userProfile', JSON.stringify(prof));
+        localStorage.setItem('filmmax_react_profile_v5', JSON.stringify(prof));
+        updateUserProfile({ selectedGenreIds: updated, favoriteGenres: genreNames, favoriteGenre: genreNames[0] });
+      }
+    } catch {}
+  };
+
+  // Main Form Submission: 1. Signup VIP & 2. Login Logic using pure localStorage
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (authMode === 'signup') {
+      // ==========================================
+      // 1. VIP Sign Up (إنشاء حساب VIP)
+      // ==========================================
+      const trimmedName = name.trim();
+      const trimmedEmail = email.trim();
+      const trimmedPhone = phone.trim();
+      const trimmedPassword = password.trim();
+
+      if (!trimmedName) {
+        showToast('يرجى كتابة الاسم أو اللقب السينمائي 👤');
+        return;
+      }
+      if (!trimmedEmail) {
+        showToast('يرجى كتابة البريد الإلكتروني 📧');
+        return;
+      }
+      if (!trimmedPassword) {
+        showToast('يرجى كتابة كلمة المرور 🔒');
+        return;
+      }
+
+      setIsLoading(true);
+
+      const selectedGenreNames = selectedGenres.map(
+        gid => GENRE_OPTIONS.find(g => g.id === gid)?.name || gid
+      );
+      const primaryGenre = selectedGenreNames[0] || 'أكشن ومغامرات 💥';
+
+      const userData = {
+        id: `usr-${Date.now()}`,
+        name: trimmedName,
+        username: trimmedName.toLowerCase().replace(/\s+/g, '_') || 'vip_user',
+        email: trimmedEmail.toLowerCase(),
+        phone: trimmedPhone || '+966 50 123 4567',
+        password: trimmedPassword,
+        avatar: selectedAvatar.icon,
+        avatarFrame: selectedAvatar.frame as 'gold' | 'neon' | 'fire' | 'diamond' | 'none',
+        favoriteGenre: primaryGenre,
+        favoriteGenres: selectedGenreNames,
+        selectedGenreIds: selectedGenres,
+        isPremium: true,
+        membershipBadge: '👑 ULTRA VIP MEMBER',
+        premiumExpiry: '31/12/2026',
+        level: 15,
+        levelTitle: 'أسطورة السينما VIP',
+        xp: 4500,
+        createdAt: Date.now()
+      };
+
+      try {
+        const emailKey = userData.email.toLowerCase();
+        localStorage.setItem('filmMax_user_' + emailKey, JSON.stringify(userData));
+        localStorage.setItem('filmMax_session', emailKey);
+        localStorage.setItem('userProfile', JSON.stringify(userData));
+        localStorage.setItem('filmmax_react_profile_v5', JSON.stringify(userData));
+
+        // Save to registered users list for subsequent login verification
+        let registeredUsers: any[] = [];
+        try {
+          const savedUsers = localStorage.getItem('filmmax_registered_users');
+          if (savedUsers) registeredUsers = JSON.parse(savedUsers);
+        } catch {}
+
+        const existingIdx = registeredUsers.findIndex(
+          u => u.email?.toLowerCase() === userData.email
+        );
+        if (existingIdx >= 0) {
+          registeredUsers[existingIdx] = userData;
+        } else {
+          registeredUsers.push(userData);
+        }
+        localStorage.setItem('filmmax_registered_users', JSON.stringify(registeredUsers));
+
+        if (rememberMe) {
+          localStorage.setItem('filmmax_remember_email', userData.email);
+        }
+      } catch (err) {
+        console.warn('localStorage save note:', err);
+      }
+
+      // Update State
+      updateUserProfile(userData);
+
+      setTimeout(() => {
+        setIsLoading(false);
+        showToast('🎉 تم إنشاء حساب VIP وحفظ البيانات بنجاح! مرحباً بك');
+        navigateTo('home');
+        onSuccess();
+      }, 400);
+
+    } else {
+      // ==========================================
+      // 2. Login (تسجيل الدخول)
+      // ==========================================
+      const trimmedEmail = email.trim().toLowerCase();
+      const trimmedPassword = password.trim();
+
+      if (!trimmedEmail) {
+        showToast('يرجى إدخال البريد الإلكتروني 📧');
+        return;
+      }
+      if (!trimmedPassword) {
+        showToast('يرجى إدخال كلمة المرور 🔒');
+        return;
+      }
+
+      setIsLoading(true);
+
+      setTimeout(() => {
+        setIsLoading(false);
+
+        // Verification against saved data in localStorage
+        let matchedUser: any = null;
+
+        // 0) Search in user-specific key filmMax_user_[email]
+        try {
+          const specificUserStr = localStorage.getItem('filmMax_user_' + trimmedEmail);
+          if (specificUserStr) {
+            const specificUser = JSON.parse(specificUserStr);
+            if (specificUser && (!specificUser.password || specificUser.password === trimmedPassword)) {
+              matchedUser = specificUser;
+            }
+          }
+        } catch {}
+
+        // 1) Search in registered users registry
+        if (!matchedUser) {
+          try {
+            const savedUsersStr = localStorage.getItem('filmmax_registered_users');
+            if (savedUsersStr) {
+              const usersList = JSON.parse(savedUsersStr);
+              if (Array.isArray(usersList)) {
+                matchedUser = usersList.find(
+                  (u: any) =>
+                    u.email?.toLowerCase() === trimmedEmail &&
+                    u.password === trimmedPassword
+                );
+              }
+            }
+          } catch {}
+        }
+
+        // 2) Search in 'userProfile' key
+        if (!matchedUser) {
+          try {
+            const savedProfileStr = localStorage.getItem('userProfile');
+            if (savedProfileStr) {
+              const prof = JSON.parse(savedProfileStr);
+              if (
+                prof &&
+                prof.email?.toLowerCase() === trimmedEmail &&
+                (!prof.password || prof.password === trimmedPassword)
+              ) {
+                matchedUser = prof;
+              }
+            }
+          } catch {}
+        }
+
+        // 3) Search in 'filmmax_react_profile_v5'
+        if (!matchedUser) {
+          try {
+            const savedV5Str = localStorage.getItem('filmmax_react_profile_v5');
+            if (savedV5Str) {
+              const prof = JSON.parse(savedV5Str);
+              if (
+                prof &&
+                prof.email?.toLowerCase() === trimmedEmail &&
+                (!prof.password || prof.password === trimmedPassword)
+              ) {
+                matchedUser = prof;
+              }
+            }
+          } catch {}
+        }
+
+        // 4) Demo credentials compatibility
+        if (
+          !matchedUser &&
+          (trimmedEmail === 'user@filmmax.vip' || trimmedEmail === 'mohamed@filmmax.vip') &&
+          (trimmedPassword === 'FilmMax#2026' || trimmedPassword === '123456')
+        ) {
+          matchedUser = {
+            id: 'usr-vip-001',
+            name: 'محمد أحمد الحامد',
+            email: trimmedEmail,
+            phone: '+964 770 123 4567',
+            avatar: '👑',
+            isPremium: true,
+            membershipBadge: '👑 ULTRA VIP MEMBER',
+            level: 15,
+            levelTitle: 'أسطورة السينما VIP',
+            xp: 4500
+          };
+        }
+
+        if (matchedUser) {
+          // Merge with any existing saved profile data (like coverPhoto, avatar, etc.) if stored in localStorage
+          try {
+            const emailKey = (matchedUser.email || trimmedEmail).toLowerCase();
+            const specificUserStr = localStorage.getItem('filmMax_user_' + emailKey);
+            if (specificUserStr) {
+              const existingSpec = JSON.parse(specificUserStr);
+              if (existingSpec && existingSpec.name) {
+                matchedUser = {
+                  ...matchedUser,
+                  ...existingSpec,
+                  avatar: existingSpec.avatar || matchedUser.avatar,
+                  coverPhoto: existingSpec.coverPhoto || matchedUser.coverPhoto
+                };
+              }
+            }
+
+            localStorage.setItem('filmMax_session', emailKey);
+            localStorage.setItem('filmMax_user_' + emailKey, JSON.stringify(matchedUser));
+            localStorage.setItem('userProfile', JSON.stringify(matchedUser));
+            localStorage.setItem('filmmax_react_profile_v5', JSON.stringify(matchedUser));
+            if (rememberMe) {
+              localStorage.setItem('filmmax_remember_email', matchedUser.email);
+            }
+          } catch {}
+
+          updateUserProfile(matchedUser);
+          showToast(`✨ تم تسجيل الدخول بنجاح! أهلاً بك يا ${matchedUser.name || 'عضو VIP'}`);
+          navigateTo('home');
+          onSuccess();
+        } else {
+          // If credentials do not match, show simple error message
+          showToast('❌ البريد الإلكتروني أو كلمة المرور غير صحيحة، يرجى التحقق من البيانات');
+        }
+      }, 350);
     }
   };
 
-  // Main Form Submission
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  // 3. Quick Access: Fast Guest Login (دخول سريع كزائر VIP)
+  const handleGuestLogin = () => {
     setIsLoading(true);
-
     setTimeout(() => {
       setIsLoading(false);
-
-      const finalName = name.trim() || (authMode === 'signup' ? 'عضو VIP السينمائي' : 'عضو سينما FilmMax');
-      const finalEmail = email.trim() || 'user@filmmax.vip';
-      const finalPhone = phone.trim() || '+966 50 123 4567';
-
-      updateUserProfile({
-        name: finalName,
-        email: finalEmail,
-        phone: finalPhone,
-        avatar: selectedAvatar.icon,
-        avatarFrame: selectedAvatar.frame,
-        favoriteGenre: GENRE_OPTIONS.find(g => g.id === selectedGenres[0])?.name || 'أكشن ومغامرات',
+      const guestData = {
+        id: `guest-${Date.now()}`,
+        name: 'زائر VIP مميز',
+        email: 'guest@filmmax.vip',
+        phone: '+964 770 000 0000',
+        avatar: '🍿',
+        avatarFrame: 'gold' as const,
+        favoriteGenre: 'أكشن ومغامرات 💥',
+        favoriteGenres: ['أكشن ومغامرات 💥'],
+        selectedGenreIds: ['action'],
         isPremium: true,
-        membershipBadge: '👑 ULTRA VIP MEMBER',
-        level: 15,
-        levelTitle: 'أسطورة السينما VIP',
-        xp: 4500
-      });
+        membershipBadge: '🍿 GUEST VIP',
+        level: 1,
+        levelTitle: 'زائر VIP',
+        xp: 100,
+        createdAt: Date.now()
+      };
+      try {
+        const emailKey = guestData.email.toLowerCase();
+        const existingSpec = localStorage.getItem('filmMax_user_' + emailKey);
+        let finalGuest = guestData;
+        if (existingSpec) {
+          try {
+            const p = JSON.parse(existingSpec);
+            if (p && p.name) finalGuest = { ...guestData, ...p };
+          } catch {}
+        }
+        localStorage.setItem('filmMax_user_' + emailKey, JSON.stringify(finalGuest));
+        localStorage.setItem('filmMax_session', emailKey);
+        localStorage.setItem('userProfile', JSON.stringify(finalGuest));
+        localStorage.setItem('filmmax_react_profile_v5', JSON.stringify(finalGuest));
+      } catch {}
 
-      showToast(
-        authMode === 'signup'
-          ? '🎉 تم إنشاء بطاقة عضوية VIP وتفعيل كافة الصلاحيات بنجاح!'
-          : '✨ تم تسجيل الدخول بنجاح! أهلاً بك في سينما FilmMax'
-      );
+      updateUserProfile(guestData);
+      showToast('🍿 تم الدخول السريع كزائر VIP! استمتع بكافة الميزات');
+      navigateTo('home');
       onSuccess();
-    }, 700);
+    }, 250);
   };
 
-  // Handle OTP Mobile Auth
+  // 3. Quick Access: Biometric Passkey (دخول ببصمة الوجه FaceID)
+  const handleBiometricAuth = () => {
+    setIsBiometricScanning(true);
+    setTimeout(() => {
+      setIsBiometricScanning(false);
+      let bioUser: any = null;
+      try {
+        const saved = localStorage.getItem('userProfile') || localStorage.getItem('filmmax_react_profile_v5');
+        if (saved) bioUser = JSON.parse(saved);
+      } catch {}
+
+      if (!bioUser || !bioUser.name) {
+        bioUser = {
+          id: `bio-${Date.now()}`,
+          name: 'عضو البصمة الذكية FaceID',
+          email: 'biometric@filmmax.vip',
+          phone: '+964 770 123 4567',
+          avatar: '👑',
+          avatarFrame: 'diamond' as const,
+          favoriteGenre: 'أكشن ومغامرات 💥',
+          favoriteGenres: ['أكشن ومغامرات 💥'],
+          selectedGenreIds: ['action'],
+          isPremium: true,
+          membershipBadge: '🛡️ FACE-ID VIP',
+          level: 15,
+          levelTitle: 'أسطورة السينما VIP',
+          xp: 4500,
+          createdAt: Date.now()
+        };
+      }
+      try {
+        const emailKey = bioUser.email.toLowerCase();
+        const existingSpec = localStorage.getItem('filmMax_user_' + emailKey);
+        if (existingSpec) {
+          try {
+            const p = JSON.parse(existingSpec);
+            if (p && p.name) bioUser = { ...bioUser, ...p };
+          } catch {}
+        }
+        localStorage.setItem('filmMax_user_' + emailKey, JSON.stringify(bioUser));
+        localStorage.setItem('filmMax_session', emailKey);
+        localStorage.setItem('userProfile', JSON.stringify(bioUser));
+        localStorage.setItem('filmmax_react_profile_v5', JSON.stringify(bioUser));
+      } catch {}
+
+      updateUserProfile(bioUser);
+      showToast('🛡️ تم التحقق عبر البصمة الحيوية (FaceID) بنجاح!');
+      navigateTo('home');
+      onSuccess();
+    }, 800);
+  };
+
+  // 3. Quick Access: Mobile OTP Fast Pass (رمز OTP)
   const handleSendOtp = () => {
     if (!phone.trim()) {
       showToast('يرجى كتابة رقم الهاتف أولاً 📱');
@@ -148,7 +501,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
       setIsLoading(false);
       setOtpSent(true);
       showToast('📩 تم إرسال رمز التحقق OTP إلى هاتفك (الرمز التجريبي: 1234)');
-    }, 600);
+    }, 350);
   };
 
   const handleVerifyOtp = () => {
@@ -157,49 +510,46 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
       setIsLoading(true);
       setTimeout(() => {
         setIsLoading(false);
-        updateUserProfile({
-          name: 'عضو الدخول السريع OTP',
+        let otpUser = {
+          id: `otp-${Date.now()}`,
+          name: phone.trim() ? `عضو OTP (${phone.trim().slice(-4)})` : 'عضو الدخول السريع OTP',
           phone: phone.trim() || '+966 50 123 4567',
-          isPremium: true
-        });
-        showToast('🛡️ تم التحقق برمز OTP بنجاح! مشاهدة ممتعة');
+          email: `otp_${phone.trim().replace(/\D/g, '') || 'user'}@filmmax.vip`,
+          avatar: '📱',
+          avatarFrame: 'neon' as const,
+          favoriteGenre: 'دراما وإثارة 🎭',
+          favoriteGenres: ['دراما وإثارة 🎭'],
+          selectedGenreIds: ['drama'],
+          isPremium: true,
+          membershipBadge: '📱 OTP VIP',
+          level: 10,
+          levelTitle: 'عضو VIP موثق',
+          xp: 2500,
+          createdAt: Date.now()
+        };
+        try {
+          const emailKey = otpUser.email.toLowerCase();
+          const existingSpec = localStorage.getItem('filmMax_user_' + emailKey);
+          if (existingSpec) {
+            try {
+              const p = JSON.parse(existingSpec);
+              if (p && p.name) otpUser = { ...otpUser, ...p };
+            } catch {}
+          }
+          localStorage.setItem('filmMax_user_' + emailKey, JSON.stringify(otpUser));
+          localStorage.setItem('filmMax_session', emailKey);
+          localStorage.setItem('userProfile', JSON.stringify(otpUser));
+          localStorage.setItem('filmmax_react_profile_v5', JSON.stringify(otpUser));
+        } catch {}
+
+        updateUserProfile(otpUser);
+        showToast('🛡️ تم التحقق بنجاح برمز OTP! مشاهدة ممتعة');
+        navigateTo('home');
         onSuccess();
-      }, 500);
+      }, 350);
     } else {
-      showToast('رمز التحقق غير صحيح! جرب إدخال 1234');
+      showToast('رمز التحقق غير صحيح! الرمز التجريبي هو: 1234');
     }
-  };
-
-  // Handle Quick Biometric Passkey
-  const handleBiometricAuth = () => {
-    setIsBiometricScanning(true);
-    setTimeout(() => {
-      setIsBiometricScanning(false);
-      updateUserProfile({
-        name: 'عضو البصمة الذكية FaceID',
-        email: 'biometric@filmmax.vip',
-        isPremium: true,
-        avatarFrame: 'diamond'
-      });
-      showToast('🛡️ تم التحقق عبر البصمة الحيوية (FaceID) بنجاح!');
-      onSuccess();
-    }, 1200);
-  };
-
-  // Handle Fast Guest Login
-  const handleGuestLogin = () => {
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      updateUserProfile({
-        name: 'زائر VIP مميز',
-        email: 'guest@filmmax.vip',
-        isPremium: true,
-        membershipBadge: '🍿 GUEST VIP'
-      });
-      showToast('🍿 تم الدخول السريع كزائر VIP! استمتع بكافة الميزات');
-      onSuccess();
-    }, 400);
   };
 
   return (

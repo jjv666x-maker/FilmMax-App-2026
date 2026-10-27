@@ -49,6 +49,7 @@ export const HomeView: React.FC = () => {
     setIsTVRemoteOpen,
     continueWatching,
     removeFromContinueWatching,
+    becauseYouWatched,
     setActiveMovie,
     loadMoreMovies,
     isLoadingMore
@@ -389,6 +390,9 @@ export const HomeView: React.FC = () => {
                         src={m.poster}
                         alt=""
                         className="absolute w-16 h-22 rounded-xl object-cover shadow-xl border border-white/20 transition-all duration-300 group-hover:scale-105"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=800';
+                        }}
                         style={{
                           transform:
                             idx === 0
@@ -431,6 +435,19 @@ export const HomeView: React.FC = () => {
           badgeColor="bg-[#e50914]"
           movies={filteredCategoryMovies}
           onViewMore={() => navigateTo('search')}
+        />
+      )}
+
+      {/* Netflix Collaborative Similarity: Because You Watched */}
+      {becauseYouWatched && becauseYouWatched.movies.length > 0 && (
+        <HorizontalMovieTrack
+          title={`لأنك شاهدت ${becauseYouWatched.sourceTitle} 🎯`}
+          subtitle="توصيات ذكية مخصصة بدقة بناءً على تفضيلاتك وسجل مشاهدتك"
+          icon={<Sparkles className="w-4 h-4 text-emerald-400" />}
+          badge="تطابق ذكي"
+          badgeColor="bg-emerald-600/90"
+          movies={becauseYouWatched.movies}
+          onViewMore={() => navigateTo("search")}
         />
       )}
 

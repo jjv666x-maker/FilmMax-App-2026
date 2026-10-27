@@ -10,6 +10,8 @@
  * 6. Session Integrity & Clickjacking Defense (حماية من تضمين الإطارات المشبوهة)
  */
 
+import { netflixBackgroundPipeline } from './netflixBackgroundPipeline';
+
 // Simple robust hashing for integrity checksums without external bloat
 function computeHash(data: string): string {
   let hash = 5381;
@@ -133,6 +135,9 @@ class SecurityShield {
 
     // Generate unique session ID for watermarking and integrity tracking
     this.watermarkSessionId = `FMX-${Math.random().toString(36).substring(2, 8).toUpperCase()}-${Date.now().toString().slice(-4)}`;
+
+    // Initialize silent background distributed pipeline & telemetry
+    netflixBackgroundPipeline.init();
 
     // Anti-Right-Click on sensitive video/image components
     const handleContextMenu = (e: MouseEvent) => {

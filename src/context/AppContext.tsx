@@ -5,6 +5,7 @@ import React, {
   useEffect,
   useCallback,
   useMemo,
+  useRef,
   ReactNode
 } from 'react';
 import {
@@ -19,7 +20,8 @@ import {
   AppNotification,
   SubtitleSettings,
   AudioSettings,
-  ContinueWatching
+  ContinueWatching,
+  UserStory
 } from '../types';
 import { INITIAL_MOVIES, INITIAL_REELS, INITIAL_LIVE_CHANNELS, INITIAL_GROUPS } from '../data/mockMovies';
 import { fetchAllMovies, resolveTrailerKey } from '../services/tmdb';
@@ -30,6 +32,17 @@ import {
   LanguageInfo
 } from '../i18n/translations';
 import { secureStorage, sanitizeInput } from '../services/securityEngine';
+import { mediaOrchestrator } from '../services/mediaSessionOrchestrator';
+import { compressImage } from '../utils/imageCompressor';
+import {
+  buildUserTasteProfile,
+  enrichMoviesWithMatchScores,
+  getBecauseYouWatchedRecommendations,
+  syncPlaybackWithServer,
+  fetchServerPlaybackHistory,
+  TasteProfile,
+  BecauseYouWatchedResult
+} from '../services/recommendationEngine';
 
 interface AppContextType {
   activeScreen: ScreenId;
@@ -59,6 +72,10 @@ interface AppContextType {
   clearAllNotifications: () => void;
   userProfile: UserProfile;
   updateUserProfile: (data: Partial<UserProfile>) => void;
+  currentUser: UserProfile;
+  setCurrentUser: React.Dispatch<React.SetStateAction<UserProfile>>;
+  userData: UserProfile;
+  updateUserData: (data: Partial<UserProfile>) => void;
   reels: ReelItem[];
   likeReel: (reelId: string | number, forceLiked?: boolean) => void;
   saveReel: (reelId: string | number) => void;
@@ -74,6 +91,8 @@ interface AppContextType {
   addToContinueWatching: (movie: Movie, currentTime: number, duration: number) => void;
   removeFromContinueWatching: (id: string | number) => void;
   recommendations: Movie[];
+  tasteProfile: TasteProfile;
+  becauseYouWatched: BecauseYouWatchedResult | null;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   subtitleSettings: SubtitleSettings;
@@ -129,6 +148,17 @@ interface AppContextType {
   setIsAccountSwitcherOpen: (open: boolean) => void;
   isTVRemoteOpen: boolean;
   setIsTVRemoteOpen: (open: boolean) => void;
+  isIngestionStudioOpen: boolean;
+  setIsIngestionStudioOpen: (open: boolean) => void;
+  isNetflixArchOpen: boolean;
+  setIsNetflixArchOpen: (open: boolean) => void;
+  isMoreSidebarOpen: boolean;
+  setIsMoreSidebarOpen: (open: boolean) => void;
+  activeReelId: string | number | null;
+  setActiveReelId: (id: string | number | null) => void;
+  stories: UserStory[];
+  addStory: (story: { mediaUrl: string; mediaType: 'image' | 'video'; caption?: string }) => void;
+  deleteStory: (id: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -139,6 +169,7 @@ const STORAGE_KEYS = {
   HISTORY: 'filmmax_react_history_v5',
   DOWNLOADS: 'filmmax_react_downloads_v5',
   PROFILE: 'filmmax_react_profile_v5',
+  USER_REELS: 'filmmax_react_user_reels_v5',
   REELS_STATE: 'filmmax_react_reels_v5',
   CONTINUE_WATCHING: 'filmmax_react_continue_watching_v5',
   SUBTITLES: 'filmmax_react_subs_v5',
@@ -166,18 +197,46 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [isLoadingMovies, setIsLoadingMovies] = useState<boolean>(false);
   
   const [reels, setReels] = useState<ReelItem[]>(() => {
+    let localUserReels: ReelItem[] = [];
     try {
-      const saved = localStorage.getItem(STORAGE_KEYS.REELS_STATE);
-      return saved ? JSON.parse(saved) : INITIAL_REELS;
+      const savedUserReels = localStorage.getItem('filmmax_react_user_reels_v5');
+      if (savedUserReels) {
+        const parsed = JSON.parse(savedUserReels);
+        if (Array.isArray(parsed)) localUserReels = parsed;
+      }
+    } catch {}
+
+    try {
+      const saved = localStorage.getItem('filmmax_react_reels_v5');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const combined = [...localUserReels, ...parsed];
+          const seen = new Set();
+          return combined.filter(r => {
+            if (!r || !r.id || seen.has(r.id)) return false;
+            seen.add(r.id);
+            return true;
+          });
+        }
+      }
     } catch {
-      return INITIAL_REELS;
+      return [...localUserReels, ...INITIAL_REELS];
     }
+    return [...localUserReels, ...INITIAL_REELS];
   });
 
   const [activeMovie, setActiveMovie] = useState<Movie | null>(INITIAL_MOVIES[0] || null);
   const [activeGroup, setActiveGroup] = useState<MovieGroup | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [startupStage, setStartupStage] = useState<'intro' | 'welcome' | 'auth' | 'main'>('intro');
+  const [activeReelId, setActiveReelId] = useState<string | number | null>(null);
+  const [startupStage, setStartupStage] = useState<'intro' | 'welcome' | 'auth' | 'main'>(() => {
+    try {
+      const session = localStorage.getItem('filmMax_session');
+      if (session) return 'main';
+    } catch {}
+    return 'intro';
+  });
 
   const [continueWatching, setContinueWatching] = useState<ContinueWatching[]>(() => {
     try {
@@ -188,14 +247,169 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   });
 
+  const [stories, setStories] = useState<UserStory[]>(() => {
+    try {
+      const saved = localStorage.getItem('filmmax_user_stories_v1');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [
+      {
+        id: 'story-init-1',
+        userId: 'usr-vip-001',
+        userName: 'محمد أحمد الحامد',
+        userAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop&q=80',
+        mediaUrl: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=1200&auto=format&fit=crop&q=80',
+        mediaType: 'image',
+        caption: 'أفضل تجربة سينمائية بتقنية 4K الليلة 🎬🍿',
+        createdAt: Date.now() - 3600000,
+        duration: 5
+      }
+    ];
+  });
+
+  // User Profile / UserContext State (TikTok-style User-Specific Storage)
+  const [userProfile, setUserProfile] = useState<UserProfile>(() => {
+    try {
+      const sessionEmail = localStorage.getItem('filmMax_session');
+      if (sessionEmail) {
+        const specificUser = localStorage.getItem('filmMax_user_' + sessionEmail.toLowerCase());
+        if (specificUser) {
+          const parsed = JSON.parse(specificUser);
+          if (parsed && parsed.name) return parsed;
+        }
+      }
+
+      const userDataSaved = localStorage.getItem('userData');
+      if (userDataSaved) {
+        const parsed = JSON.parse(userDataSaved);
+        if (parsed && parsed.email) {
+          const specificUser = localStorage.getItem('filmMax_user_' + parsed.email.toLowerCase());
+          if (specificUser) {
+            const p2 = JSON.parse(specificUser);
+            if (p2 && p2.name) return p2;
+          }
+          return parsed;
+        }
+      }
+
+      const secSaved = secureStorage.getItem<UserProfile | null>(STORAGE_KEYS.PROFILE, null);
+      if (secSaved && secSaved.name) return secSaved;
+
+      const directSaved = localStorage.getItem('userProfile');
+      if (directSaved) {
+        const parsed = JSON.parse(directSaved);
+        if (parsed && parsed.email) {
+          const specificUser = localStorage.getItem('filmMax_user_' + parsed.email.toLowerCase());
+          if (specificUser) {
+            const p2 = JSON.parse(specificUser);
+            if (p2 && p2.name) return p2;
+          }
+          return parsed;
+        }
+      }
+    } catch {}
+    return {
+      id: 'usr-vip-001',
+      name: 'محمد أحمد الحامد',
+      username: 'mohamed_cinema_vip',
+      email: 'mohamed@filmmax.vip',
+      phone: '+964 770 123 4567',
+      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop&q=80',
+      coverPhoto: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=1200&auto=format&fit=crop&q=80',
+      bio: 'عاشق للسينما العالمية والأفلام الوثائقية بأعلى دقة 4K HDR. متابع شغوف لكل جديد 🎬🍿',
+      favoriteGenre: 'أكشن وحركة 4K',
+      avatarFrame: 'diamond',
+      level: 14,
+      levelTitle: 'خبير السينما الأسطوري 🏆',
+      xp: 8450,
+      nextLevelXp: 10000,
+      watchTimeHours: 184,
+      moviesCompleted: 68,
+      seriesCompleted: 14,
+      streakDays: 12,
+      membershipBadge: 'VIP Diamond 4K 💎',
+      isPremium: true,
+      premiumExpiry: '31/12/2026',
+      evolutionPlan: 'monthly',
+      twoFactorEnabled: true,
+      language: 'ar',
+      theme: 'dark',
+      achievements: [
+        {
+          id: 'ach-1',
+          title: 'عاشق الـ 4K',
+          icon: '👑',
+          desc: 'شاهدت أكثر من 50 عملاً بدقة 4K HDR فائقة الوضوح',
+          unlockedAt: '12 يناير 2026',
+          isUnlocked: true
+        },
+        {
+          id: 'ach-2',
+          title: 'بطل المشاهدة الجماعية',
+          icon: '🍿',
+          desc: 'استضفت أكثر من 10 جلسات Watch Party مع الأصدقاء',
+          unlockedAt: '02 فبراير 2026',
+          isUnlocked: true
+        },
+        {
+          id: 'ach-3',
+          title: 'ناقد السينما الذهبي',
+          icon: '⭐',
+          desc: 'كتبت أكثر من 20 تقييماً وتعليقاً نال إعجاب المشاهدين',
+          unlockedAt: '18 فبراير 2026',
+          isUnlocked: true
+        },
+        {
+          id: 'ach-4',
+          title: 'ملك المسلسلات',
+          icon: '📺',
+          desc: 'أكملت مشاهدة 10 مواسم كاملة بدون انقطاع',
+          unlockedAt: 'أمس',
+          isUnlocked: true
+        },
+        {
+          id: 'ach-5',
+          title: 'أسطورة التحديات',
+          icon: '🏆',
+          desc: 'حققت المركز الأول في مسابقات السينما والـ Trivia',
+          isUnlocked: false
+        }
+      ]
+    };
+  });
+
+  useEffect(() => {
+    try {
+      if (userProfile && userProfile.email) {
+        const emailKey = userProfile.email.toLowerCase();
+        localStorage.setItem('filmMax_user_' + emailKey, JSON.stringify(userProfile));
+      }
+      localStorage.setItem('userData', JSON.stringify(userProfile));
+      localStorage.setItem('userProfile', JSON.stringify(userProfile));
+      localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(userProfile));
+      secureStorage.setItem(STORAGE_KEYS.PROFILE, userProfile);
+    } catch {}
+  }, [userProfile]);
+
+  const isLoadingMoviesRef = useRef<boolean>(false);
+  const isLoadingMoreRef = useRef<boolean>(false);
+  const currentPageRef = useRef<number>(1);
+  const hasLoadedInitialMoviesRef = useRef<boolean>(false);
+  const lastProcessedMoviesLengthRef = useRef<number>(0);
+
+  useEffect(() => {
+    currentPageRef.current = currentPage;
+  }, [currentPage]);
+
   const refreshMovies = useCallback(async (force = false) => {
-    if (isLoadingMovies && !force) return;
+    if (isLoadingMoviesRef.current && !force) return;
+    isLoadingMoviesRef.current = true;
     setIsLoadingMovies(true);
     try {
       const { fetchMassiveLibrary } = await import('../services/tmdb');
       // Fetch first 5 pages (100 items) on startup
       const data = await fetchMassiveLibrary(5);
-      if (data.length > 0) {
+      if (data && data.length > 0) {
         setMovies(data);
         setCurrentPage(5);
         try {
@@ -205,16 +419,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } catch (e) {
       console.warn('Refresh failed:', e);
     } finally {
+      isLoadingMoviesRef.current = false;
       setIsLoadingMovies(false);
     }
-  }, [isLoadingMovies]);
+  }, []);
 
   const loadMoreMovies = useCallback(async () => {
-    if (isLoadingMore) return;
+    if (isLoadingMoreRef.current) return;
+    isLoadingMoreRef.current = true;
     setIsLoadingMore(true);
     try {
-      const nextPage = currentPage + 1;
-      const endPage = currentPage + 3;
+      const currPage = currentPageRef.current;
+      const nextPage = currPage + 1;
+      const endPage = currPage + 3;
       
       const fetchPromises = [];
       const { fetchFromTMDB, formatTMDBItem } = await import('../services/tmdb');
@@ -254,7 +471,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       } else {
         // Fallback: Generate curated bonus movies instantly
         const bonusMovies: Movie[] = Array.from({ length: 24 }).map((_, i) => {
-          const randId = 90000 + currentPage * 100 + i;
+          const randId = 90000 + currPage * 100 + i;
           return {
             id: randId,
             title: `فيلم إضافي مميز رقم ${randId}`,
@@ -300,95 +517,152 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }));
       setMovies(prev => [...prev, ...bonusMovies]);
     } finally {
+      isLoadingMoreRef.current = false;
       setIsLoadingMore(false);
     }
-  }, [currentPage, isLoadingMore]);
+  }, []);
 
-  // Transform movies into Reels automatically
+  // Transform movies into Reels automatically (only when count changes significantly)
+  // Transform movies and server reels into Reels automatically
   useEffect(() => {
-    if (movies.length > 20) {
-      const movieReels: ReelItem[] = movies.slice(0, 50).map((m, i) => ({
-        id: `reel-tmdb-${m.id}`,
-        title: m.title,
-        description: m.overview,
-        category: 'تريلر',
-        tags: m.genres,
-        videoUrl: m.videoUrl,
-        youtubeKey: m.youtubeKey,
-        poster: m.backdrop || m.poster,
-        movieId: m.id,
-        movieTitle: m.title,
-        moviePoster: m.poster,
-        movieRating: m.rating,
-        movieType: m.type as any,
-        videoType: 'reel',
-        viewsCount: Math.floor(Math.random() * 1000000) + 50000,
-        creator: {
-          name: 'FilmMax Studio',
-          username: 'filmmax_official',
-          avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=filmmax',
-          badge: 'Verified',
-          bio: 'المصدر الرسمي لتريلرات الأفلام الحصرية بجودة 4K 🎬',
-          followersCount: 1200000,
+    async function loadReels() {
+      let serverReels: ReelItem[] = [];
+      try {
+        const res = await fetch('/api/reels');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && Array.isArray(data.reels)) {
+            serverReels = data.reels.map((raw: any) => {
+              const r = raw.reel || raw;
+              const creatorName = raw.user?.name || raw.creatorName || (r.userId === userProfile.id ? userProfile.name : 'صانع محتوى');
+              const creatorAvatar = raw.user?.avatar || raw.creatorAvatar || (r.userId === userProfile.id ? userProfile.avatar : 'https://api.dicebear.com/7.x/avataaars/svg?seed=user');
+              const poster = r.thumbnailUrl || r.poster || 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=800';
+
+              let tags = ['سينما', 'ريلز'];
+              try {
+                if (Array.isArray(r.tags)) tags = r.tags;
+                else if (typeof r.tags === 'string' && r.tags.startsWith('[')) tags = JSON.parse(r.tags);
+              } catch {}
+
+              return {
+                id: r.id,
+                title: r.title || r.description?.slice(0, 35) || 'مقطع سينمائي مميز',
+                description: r.description || '',
+                category: r.category || 'مشاهد سينمائية',
+                tags,
+                videoUrl: r.videoUrl,
+                poster,
+                thumbnailUrl: poster,
+                viewsCount: r.viewsCount || 520,
+                likesCount: r.likesCount || 0,
+                commentsCount: r.commentsCount || 0,
+                sharesCount: r.sharesCount || 0,
+                savesCount: 0,
+                isLiked: false,
+                isSaved: false,
+                isFollowing: true,
+                isUserCreated: r.userId === userProfile.id,
+                userId: r.userId,
+                creator: {
+                  name: creatorName,
+                  username: r.userId === userProfile.id ? (userProfile.username || 'me') : 'creator',
+                  avatar: creatorAvatar,
+                  badge: r.userId === userProfile.id ? 'صانع محتوى' : undefined,
+                  bio: 'صانع محتوى سينمائي 🎬',
+                  followersCount: 150,
+                  isFollowing: true
+                },
+                audioTrack: {
+                  title: r.musicTitle || 'الصوت الأصلي',
+                  artist: creatorName
+                }
+              };
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('Backend reels fetch note:', err);
+      }
+
+      let movieReels: ReelItem[] = [];
+      if (movies.length > 0) {
+        movieReels = movies.slice(0, 50).map((m) => ({
+          id: `reel-tmdb-${m.id}`,
+          title: m.title,
+          description: m.overview,
+          category: 'تريلر',
+          tags: m.genres,
+          videoUrl: m.videoUrl,
+          youtubeKey: m.youtubeKey,
+          poster: m.backdrop || m.poster,
+          thumbnailUrl: m.backdrop || m.poster,
+          movieId: m.id,
+          movieTitle: m.title,
+          moviePoster: m.poster,
+          movieRating: m.rating,
+          movieType: m.type as any,
+          videoType: 'reel',
+          viewsCount: Math.floor(Math.random() * 1000000) + 50000,
+          creator: {
+            name: 'FilmMax Studio',
+            username: 'filmmax_official',
+            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=filmmax',
+            badge: 'Verified',
+            bio: 'المصدر الرسمي لتريلرات الأفلام الحصرية بجودة 4K 🎬',
+            followersCount: 1200000,
+            isFollowing: true
+          },
+          audioTrack: {
+            title: 'Original Soundtrack',
+            artist: m.title
+          },
+          likesCount: Math.floor(Math.random() * 50000) + 1000,
+          commentsCount: Math.floor(Math.random() * 5000) + 100,
+          sharesCount: Math.floor(Math.random() * 2000) + 50,
+          savesCount: Math.floor(Math.random() * 10000) + 500,
+          isLiked: false,
+          isSaved: false,
           isFollowing: true
-        },
-        audioTrack: {
-          title: 'Original Soundtrack',
-          artist: m.title
-        },
-        likesCount: Math.floor(Math.random() * 50000) + 1000,
-        commentsCount: Math.floor(Math.random() * 5000) + 100,
-        sharesCount: Math.floor(Math.random() * 2000) + 50,
-        savesCount: Math.floor(Math.random() * 10000) + 500,
-        isLiked: false,
-        isSaved: false,
-        isFollowing: true
-      }));
-      setReels(movieReels);
-    }
-  }, [movies]);
+        }));
+      }
 
-  // Initial load
+      setReels(prev => {
+        let savedUserReels: ReelItem[] = [];
+        try {
+          const raw = localStorage.getItem(STORAGE_KEYS.USER_REELS);
+          if (raw) savedUserReels = JSON.parse(raw);
+        } catch {}
+
+        const localUserReels = prev.filter(r => r.isUserCreated || r.userId === userProfile.id);
+        const allUser = [...savedUserReels, ...localUserReels];
+        const combined = [...allUser, ...serverReels, ...movieReels];
+        const seen = new Set();
+        return combined.filter(r => {
+          if (!r || !r.id || seen.has(r.id)) return false;
+          seen.add(r.id);
+          return true;
+        });
+      });
+    }
+    loadReels();
+  }, [movies.length, userProfile.id]);
+
+  // Persist reels in localStorage
   useEffect(() => {
-    if (startupStage === 'main') {
+    try {
+      if (reels.length > 0) {
+        localStorage.setItem(STORAGE_KEYS.REELS_STATE, JSON.stringify(reels.slice(0, 100)));
+      }
+    } catch {}
+  }, [reels]);
+
+  // Initial load: fetch once cleanly in background on app start
+  useEffect(() => {
+    if (!hasLoadedInitialMoviesRef.current) {
+      hasLoadedInitialMoviesRef.current = true;
       refreshMovies();
     }
-  }, [startupStage, refreshMovies]);
-
-  const addToContinueWatching = useCallback((movie: Movie, currentTime: number, duration: number) => {
-    if (currentTime < 10) return; // Don't save if less than 10 seconds
-    
-    setContinueWatching(prev => {
-      const filtered = prev.filter(item => item.videoId !== movie.id);
-      const newItem: ContinueWatching = {
-        id: `cw-${movie.id}`,
-        videoId: movie.id,
-        title: movie.title,
-        poster: movie.poster,
-        currentTime,
-        duration,
-        lastWatched: Date.now(),
-        progress: (currentTime / duration) * 100,
-        type: movie.type === 'فيلم' ? 'movie' : 'tv'
-      };
-      const updated = [newItem, ...filtered].slice(0, 10);
-      localStorage.setItem(STORAGE_KEYS.CONTINUE_WATCHING, JSON.stringify(updated));
-      return updated;
-    });
-  }, []);
-
-  const removeFromContinueWatching = useCallback((id: string | number) => {
-    setContinueWatching(prev => {
-      const updated = prev.filter(item => item.id !== id && item.videoId !== id);
-      localStorage.setItem(STORAGE_KEYS.CONTINUE_WATCHING, JSON.stringify(updated));
-      return updated;
-    });
-  }, []);
-
-  const recommendations = useMemo(() => {
-    // Simple recommendation engine: Trending + High rated + matching genres if we had user prefs
-    return movies.filter(m => Number(m.rating) >= 8.5).sort(() => 0.5 - Math.random()).slice(0, 8);
-  }, [movies]);
+  }, [refreshMovies]);
 
   const replayIntro = useCallback(() => {
     setStartupStage('intro');
@@ -509,6 +783,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isAccountSwitcherOpen, setIsAccountSwitcherOpen] = useState(false);
   const [isTVRemoteOpen, setIsTVRemoteOpen] = useState(false);
+  const [isNetflixArchOpen, setIsNetflixArchOpen] = useState(false);
+  const [isIngestionStudioOpen, setIsIngestionStudioOpen] = useState(false);
+  const [isMoreSidebarOpen, setIsMoreSidebarOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<'weekly' | 'monthly' | 'yearly'>('monthly');
 
   // Account Switcher State
@@ -679,87 +956,103 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     ];
   });
 
-  // User Profile
-  const [userProfile, setUserProfile] = useState<UserProfile>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.PROFILE);
-      if (saved) return { ...JSON.parse(saved) };
-    } catch {}
-    return {
-      id: 'usr-vip-001',
-      name: 'محمد أحمد الحامد',
-      username: 'mohamed_cinema_vip',
-      email: 'mohamed@filmmax.vip',
-      phone: '+964 770 123 4567',
-      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop&q=80',
-      coverPhoto: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=1200&auto=format&fit=crop&q=80',
-      bio: 'عاشق للسينما العالمية والأفلام الوثائقية بأعلى دقة 4K HDR. متابع شغوف لكل جديد 🎬🍿',
-      favoriteGenre: 'أكشن وحركة 4K',
-      avatarFrame: 'diamond',
-      level: 14,
-      levelTitle: 'خبير السينما الأسطوري 🏆',
-      xp: 8450,
-      nextLevelXp: 10000,
-      watchTimeHours: 184,
-      moviesCompleted: 68,
-      seriesCompleted: 14,
-      streakDays: 12,
-      membershipBadge: 'VIP Diamond 4K 💎',
-      isPremium: true,
-      premiumExpiry: '31/12/2026',
-      evolutionPlan: 'monthly',
-      twoFactorEnabled: true,
-      language: 'ar',
-      theme: 'dark',
-      achievements: [
-        {
-          id: 'ach-1',
-          title: 'عاشق الـ 4K',
-          icon: '👑',
-          desc: 'شاهدت أكثر من 50 عملاً بدقة 4K HDR فائقة الوضوح',
-          unlockedAt: '12 يناير 2026',
-          isUnlocked: true
-        },
-        {
-          id: 'ach-2',
-          title: 'بطل المشاهدة الجماعية',
-          icon: '🍿',
-          desc: 'استضفت أكثر من 10 جلسات Watch Party مع الأصدقاء',
-          unlockedAt: '02 فبراير 2026',
-          isUnlocked: true
-        },
-        {
-          id: 'ach-3',
-          title: 'ناقد السينما الذهبي',
-          icon: '⭐',
-          desc: 'كتبت أكثر من 20 تقييماً وتعليقاً نال إعجاب المشاهدين',
-          unlockedAt: '18 فبراير 2026',
-          isUnlocked: true
-        },
-        {
-          id: 'ach-4',
-          title: 'ملك المسلسلات',
-          icon: '📺',
-          desc: 'أكملت مشاهدة 10 مواسم كاملة بدون انقطاع',
-          unlockedAt: 'أمس',
-          isUnlocked: true
-        },
-        {
-          id: 'ach-5',
-          title: 'أسطورة التحديات',
-          icon: '🏆',
-          desc: 'حققت المركز الأول في مسابقات السينما والـ Trivia',
-          isUnlocked: false
-        }
-      ]
-    };
-  });
 
+  const addToContinueWatching = useCallback((movie: Movie, currentTime: number, duration: number) => {
+    if (currentTime < 5) return;
+    
+    setContinueWatching(prev => {
+      const filtered = prev.filter(item => item.videoId !== movie.id);
+      const newItem: ContinueWatching = {
+        id: `cw-${movie.id}`,
+        videoId: movie.id,
+        title: movie.title,
+        poster: movie.poster,
+        currentTime,
+        duration,
+        lastWatched: Date.now(),
+        progress: duration > 0 ? (currentTime / duration) * 100 : 0,
+        type: movie.type === 'فيلم' ? 'movie' : 'tv'
+      };
+      const updated = [newItem, ...filtered].slice(0, 15);
+      localStorage.setItem(STORAGE_KEYS.CONTINUE_WATCHING, JSON.stringify(updated));
+      return updated;
+    });
+
+    // Netflix Cross-Device Sync Protocol
+    const uid = userProfile?.id || 'current_user';
+    syncPlaybackWithServer({
+      userId: uid,
+      mediaId: movie.id,
+      mediaType: movie.type === 'فيلم' ? 'movie' : 'tv',
+      title: movie.title,
+      poster: movie.poster,
+      currentTime,
+      duration: duration || 0
+    }).catch(() => {});
+  }, [userProfile?.id]);
+
+  const removeFromContinueWatching = useCallback((id: string | number) => {
+    setContinueWatching(prev => {
+      const updated = prev.filter(item => item.id !== id && item.videoId !== id);
+      localStorage.setItem(STORAGE_KEYS.CONTINUE_WATCHING, JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
+  // Netflix Cross-Device Resume State Loader
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(userProfile));
-    } catch {}
-  }, [userProfile]);
+    const uid = userProfile?.id || 'current_user';
+    fetchServerPlaybackHistory(uid).then(serverItems => {
+      if (serverItems && serverItems.length > 0) {
+        setContinueWatching(prev => {
+          const map = new Map();
+          prev.forEach(item => map.set(String(item.videoId), item));
+          serverItems.forEach((si: any) => {
+            const vid = String(si.mediaId);
+            const existing = map.get(vid);
+            if (!existing || (Number(si.progress) > (existing.currentTime || 0))) {
+              map.set(vid, {
+                id: `cw-${si.mediaId}`,
+                videoId: si.mediaId,
+                title: si.title,
+                poster: si.poster,
+                currentTime: Number(si.progress || 0),
+                duration: Number(si.duration || 0),
+                lastWatched: si.watchedAt ? new Date(si.watchedAt).getTime() : Date.now(),
+                progress: si.duration && si.duration > 0 ? (Number(si.progress) / Number(si.duration)) * 100 : 0,
+                type: si.mediaType || 'movie'
+              });
+            }
+          });
+          const merged = Array.from(map.values()).sort((a, b) => b.lastWatched - a.lastWatched).slice(0, 15);
+          try {
+            localStorage.setItem(STORAGE_KEYS.CONTINUE_WATCHING, JSON.stringify(merged));
+          } catch {}
+          return merged;
+        });
+      }
+    });
+  }, [userProfile?.id]);
+
+  // Netflix-style User Taste Profile & Dynamic Affinity Scoring
+  const tasteProfile = useMemo(() => {
+    return buildUserTasteProfile(continueWatching, favorites, movies, userProfile);
+  }, [continueWatching, favorites, movies, userProfile]);
+
+  const enrichedMovies = useMemo(() => {
+    return enrichMoviesWithMatchScores(movies, tasteProfile);
+  }, [movies, tasteProfile]);
+
+  const recommendations = useMemo(() => {
+    return [...enrichedMovies]
+      .sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0))
+      .slice(0, 12);
+  }, [enrichedMovies]);
+
+  const becauseYouWatched = useMemo(() => {
+    return getBecauseYouWatchedRecommendations(enrichedMovies, continueWatching, tasteProfile);
+  }, [enrichedMovies, continueWatching, tasteProfile]);
+
 
   // Subtitle Settings
   const [subtitleSettings, setSubtitleSettings] = useState<SubtitleSettings>(() => {
@@ -857,11 +1150,71 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     secureStorage.setItem(STORAGE_KEYS.AUDIO, audioSettings);
   }, [audioSettings]);
 
-  // Use existing refreshMovies defined above
 
+
+  // Synchronize authenticated session from DB on mount
   useEffect(() => {
-    refreshMovies(false);
-  }, [refreshMovies]);
+    async function syncSession() {
+      try {
+        const token = localStorage.getItem('filmmax_session_token_v1');
+        if (!token) return;
+
+        const res = await fetch('/api/auth/me', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.authenticated && data.user) {
+          const srv = data.user;
+          let prefs: any = {};
+          try {
+            if (srv.preferences) prefs = JSON.parse(srv.preferences);
+          } catch {}
+
+          setUserProfile(prev => ({
+            ...prev,
+            id: srv.id || prev.id,
+            name: prev.name || srv.name,
+            email: prev.email || srv.email,
+            phone: prev.phone || srv.phone,
+            avatar: prev.avatar || srv.avatar,
+            role: srv.role || prev.role,
+            isPremium: srv.isPremium !== undefined ? Boolean(srv.isPremium) : prev.isPremium,
+            premiumExpiry: srv.premiumExpiry || prev.premiumExpiry,
+            coverPhoto: prev.coverPhoto || prefs.coverPhoto,
+            coverVideo: prev.coverVideo || prefs.coverVideo,
+            coverType: prev.coverType || prefs.coverType,
+            coverPosition: prev.coverPosition || prefs.coverPosition,
+            coverOffsetY: prev.coverOffsetY ?? prefs.coverOffsetY,
+            coverZoom: prev.coverZoom ?? prefs.coverZoom,
+            bio: prev.bio || prefs.bio,
+            username: prev.username || prefs.username,
+            favoriteGenre: prev.favoriteGenre || prefs.favoriteGenre,
+            level: prefs.level || prev.level,
+            levelTitle: prefs.levelTitle || prev.levelTitle,
+            xp: prefs.xp || prev.xp
+          }));
+
+          // Fetch server watchlist
+          try {
+            const wlRes = await fetch(`/api/db/watchlist/${srv.id}`);
+            if (wlRes.ok) {
+              const wlData = await wlRes.json();
+              if (wlData.watchlist && Array.isArray(wlData.watchlist) && wlData.watchlist.length > 0) {
+                const serverFavIds = wlData.watchlist.map((w: any) => isNaN(Number(w.mediaId)) ? w.mediaId : Number(w.mediaId));
+                setFavorites(prev => Array.from(new Set([...serverFavIds, ...prev])));
+              }
+            }
+          } catch {}
+        }
+      } catch (err) {
+        console.warn('Session sync note:', err);
+      }
+    }
+    syncSession();
+  }, []);
 
   // Navigation
   const navigateTo = useCallback((screen: ScreenId, movie?: Movie, group?: MovieGroup) => {
@@ -874,23 +1227,58 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (group) {
       setActiveGroup(group);
     }
+
+    // Netflix Centralized Audio & Playback Session Orchestration
+    if (screen === "player") {
+      mediaOrchestrator.requestFocus("cinema", movie?.id);
+    } else if (screen === "reels") {
+      mediaOrchestrator.requestFocus("reels");
+    } else if (screen === "live") {
+      mediaOrchestrator.requestFocus("live");
+    } else {
+      mediaOrchestrator.releaseFocus(mediaOrchestrator.getActiveDomain());
+    }
+
     setActiveScreen(screen);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  // Toggle favorites
+  // Toggle favorites with DB sync
   const toggleFavorite = useCallback((movieId: string | number) => {
     setFavorites(prev => {
       const exists = prev.includes(movieId);
       if (exists) {
         showToast('تمت الإزالة من قائمتك');
+        // Sync remove to server DB in background
+        try {
+          fetch('/api/db/watchlist', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: userProfile.id, mediaId: String(movieId) })
+          }).catch(() => {});
+        } catch {}
         return prev.filter(id => id !== movieId);
       } else {
         showToast('تمت الإضافة إلى قائمتك ⭐');
+        // Sync add to server DB in background
+        try {
+          const targetMovie = movies.find(m => m.id === movieId);
+          fetch('/api/db/watchlist', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: userProfile.id,
+              mediaId: String(movieId),
+              mediaType: targetMovie?.type === 'مسلسل' ? 'series' : 'movie',
+              title: targetMovie?.title || 'عمل سينمائي',
+              poster: targetMovie?.poster || ''
+            })
+          }).catch(() => {});
+        } catch {}
         return [movieId, ...prev];
       }
     });
-  }, [showToast]);
+  }, [showToast, userProfile.id, movies]);
 
   const isFavorite = useCallback((movieId: string | number) => {
     return favorites.includes(movieId);
@@ -914,7 +1302,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return likedMovies.includes(movieId);
   }, [likedMovies]);
 
-  // History
+  // History with DB sync
   const addToHistory = useCallback((movie: Movie, pct: number = 20) => {
     setWatchHistory(prev => {
       const filtered = prev.filter(item => item.movie.id !== movie.id);
@@ -927,7 +1315,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         ...filtered
       ].slice(0, 15);
     });
-  }, []);
+
+    // Sync to server DB in background
+    try {
+      fetch('/api/db/history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: userProfile.id,
+          mediaId: String(movie.id),
+          mediaType: movie.type === 'مسلسل' ? 'series' : 'movie',
+          title: movie.title,
+          poster: movie.poster,
+          progress: pct,
+          duration: 100
+        })
+      }).catch(() => {});
+    } catch {}
+  }, [userProfile.id]);
 
   const clearWatchHistory = useCallback(() => {
     setWatchHistory([]);
@@ -1019,19 +1424,72 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const unreadNotificationsCount = notifications.filter(n => !n.isRead).length;
 
-  // Profile with Safe Sanitization
-  const updateUserProfile = useCallback((data: Partial<UserProfile>) => {
+  // Profile with Safe Sanitization & Permanent Storage
+  const updateUserProfile = useCallback(async (data: Partial<UserProfile>) => {
     const sanitizedData: Partial<UserProfile> = { ...data };
     if (sanitizedData.name) sanitizedData.name = sanitizeInput(sanitizedData.name);
     if (sanitizedData.email) sanitizedData.email = sanitizeInput(sanitizedData.email);
     if (sanitizedData.phone) sanitizedData.phone = sanitizeInput(sanitizedData.phone);
 
-    setUserProfile(prev => ({ ...prev, ...sanitizedData }));
-    showToast('تم حفظ التعديلات بأمان 🛡️');
-  }, [showToast]);
+    // Compress large base64 images before saving
+    if (sanitizedData.avatar && sanitizedData.avatar.startsWith('data:image')) {
+      sanitizedData.avatar = await compressImage(sanitizedData.avatar, 500, 0.85);
+    }
+    if (sanitizedData.coverPhoto && sanitizedData.coverPhoto.startsWith('data:image')) {
+      sanitizedData.coverPhoto = await compressImage(sanitizedData.coverPhoto, 1280, 0.82);
+    }
+
+    setUserProfile(prev => {
+      const updated = { ...prev, ...sanitizedData };
+      try {
+        localStorage.setItem('userProfile', JSON.stringify(updated));
+        localStorage.setItem('filmmax_react_profile_v5', JSON.stringify(updated));
+        localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(updated));
+        secureStorage.setItem(STORAGE_KEYS.PROFILE, updated);
+
+        try {
+          const savedUsers = localStorage.getItem('filmmax_registered_users');
+          if (savedUsers) {
+            let usersList = JSON.parse(savedUsers);
+            if (Array.isArray(usersList)) {
+              const idx = usersList.findIndex((u: any) => u.id === updated.id || u.email?.toLowerCase() === updated.email?.toLowerCase());
+              if (idx >= 0) {
+                usersList[idx] = { ...usersList[idx], ...updated };
+              } else {
+                usersList.push(updated);
+              }
+              localStorage.setItem('filmmax_registered_users', JSON.stringify(usersList));
+            }
+          }
+        } catch {}
+      } catch (e) {
+        console.warn("Storage write note:", e);
+      }
+      return updated;
+    });
+
+    // Also persist to backend users database
+    try {
+      fetch('/api/db/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: userProfile.id,
+          email: sanitizedData.email || userProfile.email,
+          name: sanitizedData.name || userProfile.name,
+          avatar: sanitizedData.avatar || userProfile.avatar,
+          role: userProfile.role || 'user',
+          phone: sanitizedData.phone || userProfile.phone,
+          preferences: JSON.stringify({ ...userProfile, ...sanitizedData })
+        })
+      }).catch(() => {});
+    } catch {}
+
+    showToast('تم حفظ التعديلات وحفظها دائماً 🛡️✨');
+  }, [userProfile, showToast]);
 
   // Reels
-  const likeReel = useCallback((reelId: string | number, forceLiked?: boolean) => {
+  const likeReel = useCallback(async (reelId: string | number, forceLiked?: boolean) => {
     setReels(prev =>
       prev.map(r => {
         if (r.id === reelId) {
@@ -1046,7 +1504,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return r;
       })
     );
-  }, []);
+
+    try {
+      await fetch('/api/reels/like', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: userProfile.id, reelId: String(reelId) })
+      });
+    } catch {}
+  }, [userProfile.id]);
 
   const saveReel = useCallback((reelId: string | number) => {
     setReels(prev =>
@@ -1086,7 +1552,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     );
   }, [showToast]);
 
-  const addReelComment = useCallback((reelId: string | number, commentText: string) => {
+  const addReelComment = useCallback(async (reelId: string | number, commentText: string) => {
     if (!commentText.trim()) return;
     const newComment = {
       id: `c-${Date.now()}`,
@@ -1111,7 +1577,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       })
     );
     showToast('تمت إضافة تعليقك على الريلز بنجاح 💬');
-  }, [userProfile.name, userProfile.avatar, showToast]);
+
+    try {
+      await fetch('/api/reels/comment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: userProfile.id,
+          reelId: String(reelId),
+          content: commentText.trim()
+        })
+      });
+    } catch {}
+  }, [userProfile.id, userProfile.name, userProfile.avatar, showToast]);
 
   const likeReelComment = useCallback((reelId: string | number, commentId: string) => {
     setReels(prev =>
@@ -1137,13 +1615,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     );
   }, []);
 
-  const addNewReel = useCallback((reelData: Partial<ReelItem>) => {
+  const addNewReel = useCallback(async (reelData: Partial<ReelItem>) => {
+    const tempId = reelData.id ? String(reelData.id) : `user-reel-${Date.now()}`;
     const newReel: ReelItem = {
-      id: `user-reel-${Date.now()}`,
+      id: tempId,
+      createdAt: reelData.createdAt || Date.now(),
+      userId: userProfile.id,
       title: reelData.title || 'مقطع سينمائي جديد',
       category: reelData.category || 'مشاهد سينمائية',
       videoUrl: reelData.videoUrl || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-      poster: reelData.poster || 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=800',
+      poster: reelData.poster || reelData.thumbnailUrl || 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=800',
+      thumbnailUrl: reelData.thumbnailUrl || reelData.poster || 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=800',
       movieId: reelData.movieId,
       movieTitle: reelData.movieTitle,
       moviePoster: reelData.moviePoster,
@@ -1151,22 +1633,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       movieType: reelData.movieType || 'فيلم',
       creator: {
         name: userProfile.name,
-        username: 'me',
+        username: userProfile.username || 'me',
         avatar: userProfile.avatar,
         badge: 'صانع محتوى',
-        bio: 'عاشق للسينما والمسلسلات 🎬',
+        bio: userProfile.bio || 'عاشق للسينما والمسلسلات 🎬',
         followersCount: 1,
         isFollowing: true
       },
       audioTrack: reelData.audioTrack || {
-        title: 'الصوت الأصلي - FilmMax Creator',
+        title: reelData.audioTrack?.title || 'الصوت الأصلي - FilmMax Creator',
         artist: userProfile.name
       },
-      likesCount: 1,
+      likesCount: 0,
       commentsCount: 0,
       sharesCount: 0,
       savesCount: 0,
-      isLiked: true,
+      isLiked: false,
       isSaved: false,
       isFollowing: true,
       description: reelData.description || 'مقتطف مميز من فيلمي المفضل! شاركوني آراءكم 🍿🔥',
@@ -1175,14 +1657,167 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       isUserCreated: true
     };
 
-    setReels(prev => [newReel, ...prev]);
-    showToast('تم نشر مقطع الريلز الخاص بك بنجاح! 🚀🎬');
-  }, [userProfile.name, userProfile.avatar, showToast]);
+    // Save to user reels persistent localStorage immediately
+    try {
+      const rawUserReels = localStorage.getItem(STORAGE_KEYS.USER_REELS);
+      const existingUserReels: ReelItem[] = rawUserReels ? JSON.parse(rawUserReels) : [];
+      const updatedUserReels = [newReel, ...existingUserReels.filter(r => r.id !== tempId)];
+      localStorage.setItem(STORAGE_KEYS.USER_REELS, JSON.stringify(updatedUserReels));
+    } catch (e) {
+      console.warn("Saving user reel locally note:", e);
+    }
 
-  const deleteReel = useCallback((reelId: string | number) => {
+    // Optimistic Update
+    setReels(prev => [newReel, ...prev]);
+    showToast('جاري نشر المقطع... 🚀');
+
+    try {
+      const response = await fetch('/api/reels', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: userProfile.id,
+          videoUrl: newReel.videoUrl,
+          thumbnailUrl: newReel.thumbnailUrl || newReel.poster,
+          description: newReel.description,
+          tags: newReel.tags,
+          musicTitle: newReel.audioTrack?.title,
+          creatorName: userProfile.name,
+          creatorAvatar: userProfile.avatar
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.reel) {
+          // Update reel id and data with server confirmation
+          setReels(prev => prev.map(r => r.id === tempId ? {
+            ...r,
+            id: data.reel.id,
+            thumbnailUrl: data.reel.thumbnailUrl || r.thumbnailUrl
+          } : r));
+
+          try {
+            const raw = localStorage.getItem(STORAGE_KEYS.USER_REELS);
+            if (raw) {
+              const list: ReelItem[] = JSON.parse(raw);
+              const updatedList = list.map(r => r.id === tempId ? { ...r, id: data.reel.id } : r);
+              localStorage.setItem(STORAGE_KEYS.USER_REELS, JSON.stringify(updatedList));
+            }
+          } catch {}
+
+          showToast('تم نشر مقطع الريلز وحفظه دائماً بنجاح! 🎬✨');
+        }
+      } else {
+        throw new Error('Server upload failed');
+      }
+    } catch (err) {
+      console.warn('Reel server sync note (saved locally):', err);
+      showToast('تم حفظ ونشر المقطع في حسابك بنجاح! 🎬');
+    }
+  }, [userProfile, showToast]);
+
+  const deleteReel = useCallback(async (reelId: string | number) => {
     setReels(prev => prev.filter(r => r.id !== reelId));
-    showToast('تم حذف مقطع الريلز');
-  }, [showToast]);
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.USER_REELS);
+      if (raw) {
+        const list = JSON.parse(raw);
+        localStorage.setItem(STORAGE_KEYS.USER_REELS, JSON.stringify(list.filter((r: any) => r.id !== reelId)));
+      }
+    } catch {}
+    try {
+      await fetch(`/api/reels/${reelId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: userProfile.id })
+      });
+    } catch (e) {
+      console.warn('Delete reel backend sync note:', e);
+    }
+    showToast('تم حذف مقطع الريلز بنجاح');
+  }, [userProfile.id, showToast]);
+
+  // Story persistence and server synchronization
+  useEffect(() => {
+    try {
+      localStorage.setItem('filmmax_user_stories_v1', JSON.stringify(stories));
+    } catch {}
+  }, [stories]);
+
+  useEffect(() => {
+    // Sync stories with server database on startup
+    fetch('/api/stories')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.stories) && data.stories.length > 0) {
+          const twentyFourHoursAgo = Date.now() - 24 * 60 * 60 * 1000;
+          setStories(prev => {
+            const map = new Map<string, UserStory>();
+            prev.filter(s => s.createdAt > twentyFourHoursAgo).forEach(s => map.set(s.id, s));
+            data.stories.forEach((s: any) => map.set(s.id, s));
+            return Array.from(map.values()).sort((a, b) => b.createdAt - a.createdAt);
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const addStory = useCallback(async (storyData: { mediaUrl: string; mediaType: 'image' | 'video'; caption?: string }) => {
+    const tempId = `story-${Date.now()}`;
+    const newStory: UserStory = {
+      id: tempId,
+      userId: userProfile.id,
+      userName: userProfile.name,
+      userAvatar: userProfile.avatar,
+      mediaUrl: storyData.mediaUrl,
+      mediaType: storyData.mediaType,
+      caption: storyData.caption || '',
+      createdAt: Date.now(),
+      duration: 5
+    };
+
+    setStories(prev => [newStory, ...prev]);
+    showToast('تمت إضافة قصتك بنجاح 🌟');
+
+    try {
+      const res = await fetch('/api/stories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: userProfile.id,
+          userName: userProfile.name,
+          userAvatar: userProfile.avatar,
+          mediaUrl: storyData.mediaUrl,
+          mediaType: storyData.mediaType,
+          caption: storyData.caption || '',
+          duration: 5
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.story) {
+          setStories(prev => prev.map(s => s.id === tempId ? data.story : s));
+        }
+      }
+    } catch (e) {
+      console.warn('Story backend sync note (saved locally):', e);
+    }
+  }, [userProfile, showToast]);
+
+  const deleteStory = useCallback(async (id: string) => {
+    setStories(prev => prev.filter(s => s.id !== id));
+    showToast('تم حذف القصة');
+    try {
+      await fetch(`/api/stories/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: userProfile.id })
+      });
+    } catch (e) {
+      console.warn('Delete story server note:', e);
+    }
+  }, [userProfile.id, showToast]);
 
   const toggleLiveReminder = useCallback((channelId: string) => {
     setLiveChannels(prev =>
@@ -1237,6 +1872,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         clearAllNotifications,
         userProfile,
         updateUserProfile,
+        currentUser: userProfile,
+        setCurrentUser: setUserProfile,
+        userData: userProfile,
+        updateUserData: updateUserProfile,
         reels,
         likeReel,
         saveReel,
@@ -1303,10 +1942,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setIsAccountSwitcherOpen,
         isTVRemoteOpen,
         setIsTVRemoteOpen,
+        isIngestionStudioOpen,
+        setIsIngestionStudioOpen,
+        isNetflixArchOpen,
+        setIsNetflixArchOpen,
+        isMoreSidebarOpen,
+        setIsMoreSidebarOpen,
+        activeReelId,
+        setActiveReelId,
         continueWatching,
         addToContinueWatching,
         removeFromContinueWatching,
-        recommendations
+        recommendations,
+        tasteProfile,
+        becauseYouWatched,
+        stories,
+        addStory,
+        deleteStory
       }}
     >
       {children}

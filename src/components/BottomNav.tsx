@@ -1,7 +1,7 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
 import { ScreenId } from '../types';
-import { Home, Clapperboard, Radio, Bookmark, MoreHorizontal } from 'lucide-react';
+import { Home, Clapperboard, Radio, Bookmark, User } from 'lucide-react';
 
 interface NavItem {
   id: ScreenId;
@@ -14,16 +14,19 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'reels', label: 'ريلز', icon: Clapperboard },
   { id: 'live', label: 'بث مباشر', icon: Radio },
   { id: 'favorites', label: 'قائمتي', icon: Bookmark },
-  { id: 'settings', label: 'المزيد', icon: MoreHorizontal }
+  { id: 'account', label: 'الحساب', icon: User }
 ];
 
 export const BottomNav: React.FC = () => {
   const { activeScreen, navigateTo } = useApp();
 
+  // Hide navigation bar when watching a video in player
+  if (activeScreen === 'player') return null;
+
   // Determine which nav is active
   const isNavActive = (id: ScreenId) => {
     if (activeScreen === id) return true;
-    if (id === 'settings' && ['account', 'subscription', 'quality', 'notifications', 'privacy', 'help', 'about', 'downloads', 'subtitles', 'audio', 'security', 'parent', 'personal', 'share'].includes(activeScreen)) {
+    if (id === 'account' && ['account', 'subscription', 'quality', 'notifications', 'privacy', 'help', 'about', 'downloads', 'subtitles', 'audio', 'security', 'parent', 'personal', 'share', 'settings'].includes(activeScreen)) {
       return true;
     }
     return false;
@@ -39,7 +42,9 @@ export const BottomNav: React.FC = () => {
           return (
             <button
               key={item.id}
-              onClick={() => navigateTo(item.id)}
+              onClick={() => {
+                navigateTo(item.id);
+              }}
               className={`flex flex-col items-center justify-center py-1 px-2.5 sm:px-4 rounded-2xl transition-all relative ${
                 active
                   ? 'text-[#e50914] font-black'

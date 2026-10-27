@@ -1,9 +1,10 @@
+import { resilienceCache } from './resilienceCache';
 import { Movie } from '../types';
 import { INITIAL_MOVIES } from '../data/mockMovies';
 
 const API_BASE = '/api/tmdb';
-const TMDB_IMAGE = 'https://image.tmdb.org/t/p/original';
-const TMDB_BACKDROP = 'https://image.tmdb.org/t/p/original';
+const TMDB_IMAGE = 'https://image.tmdb.org/t/p/w500';
+const TMDB_BACKDROP = 'https://image.tmdb.org/t/p/w1280';
 const TMDB_LANG = 'ar-SA';
 
 const GENRE_MAP: Record<number, string> = {
@@ -29,20 +30,18 @@ const GENRE_MAP: Record<number, string> = {
 };
 
 export async function fetchFromTMDB(endpoint: string, params: Record<string, string> = {}): Promise<any> {
-  const url = new URL(window.location.origin + API_BASE + (endpoint.startsWith('/') ? endpoint : `/${endpoint}`));
-  url.searchParams.set('language', TMDB_LANG);
-  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+  const cacheKey = `tmdb_${endpoint}_${JSON.stringify(params)}`;
+  return resilienceCache.executeWithResilience(cacheKey, async () => {
+    const url = new URL(window.location.origin + API_BASE + (endpoint.startsWith('/') ? endpoint : `/${endpoint}`));
+    url.searchParams.set('language', TMDB_LANG);
+    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
 
-  try {
     const res = await fetch(url.toString(), {
       headers: { Accept: 'application/json' }
     });
     if (!res.ok) throw new Error(`TMDB HTTP ${res.status}`);
     return await res.json();
-  } catch (err) {
-    console.error('TMDB Fetch Error:', err);
-    throw err;
-  }
+  });
 }
 
 // Map of popular known trailer YouTube keys to ensure 100% video playability

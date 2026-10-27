@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Bookmark, Play, Clock, ArrowUpDown, Heart, Film, Tv, Trash2 } from 'lucide-react';
+import { Bookmark, Play, Clock, ArrowUpDown, Heart, Film, Tv, Trash2, Download, CheckCircle2, AlertCircle, X } from 'lucide-react';
 
 export const MyListView: React.FC = () => {
   const {
@@ -9,11 +9,16 @@ export const MyListView: React.FC = () => {
     navigateTo,
     toggleFavorite,
     watchHistory,
-    clearWatchHistory
+    clearWatchHistory,
+    downloads,
+    playDownloadedMovie,
+    removeDownload,
+    showToast
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'all' | 'movies' | 'series'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'movies' | 'series' | 'downloads'>('all');
   const [isNewestFirst, setIsNewestFirst] = useState<boolean>(true);
+  const [showClearHistoryConfirm, setShowClearHistoryConfirm] = useState<boolean>(false);
 
   // Favorite movies
   const favMovies = movies.filter(m => favorites.includes(m.id));
@@ -49,10 +54,10 @@ export const MyListView: React.FC = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 bg-[#121620] p-1.5 rounded-2xl border border-white/10 shadow-inner">
+      <div className="flex items-center gap-2 bg-[#121620] p-1.5 rounded-2xl border border-white/10 shadow-inner flex-wrap">
         <button
           onClick={() => setActiveTab('all')}
-          className={`flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all ${
+          className={`flex-1 min-w-[70px] py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all ${
             activeTab === 'all'
               ? 'bg-[#e50914] text-white shadow-md shadow-[#e50914]/30'
               : 'text-gray-400 hover:text-white'
@@ -62,7 +67,7 @@ export const MyListView: React.FC = () => {
         </button>
         <button
           onClick={() => setActiveTab('movies')}
-          className={`flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all ${
+          className={`flex-1 min-w-[70px] py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all ${
             activeTab === 'movies'
               ? 'bg-[#e50914] text-white shadow-md shadow-[#e50914]/30'
               : 'text-gray-400 hover:text-white'
@@ -72,7 +77,7 @@ export const MyListView: React.FC = () => {
         </button>
         <button
           onClick={() => setActiveTab('series')}
-          className={`flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all ${
+          className={`flex-1 min-w-[70px] py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all ${
             activeTab === 'series'
               ? 'bg-[#e50914] text-white shadow-md shadow-[#e50914]/30'
               : 'text-gray-400 hover:text-white'
@@ -80,26 +85,61 @@ export const MyListView: React.FC = () => {
         >
           مسلسلات ({favMovies.filter(m => m.type === 'مسلسل').length})
         </button>
+        <button
+          onClick={() => setActiveTab('downloads')}
+          className={`flex-1 min-w-[70px] py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-1.5 ${
+            activeTab === 'downloads'
+              ? 'bg-[#e50914] text-white shadow-md shadow-[#e50914]/30'
+              : 'text-gray-400 hover:text-white'
+          }`}
+        >
+          <Download className="w-3.5 h-3.5" />
+          <span>أوفلاين ({downloads.length})</span>
+        </button>
       </div>
 
-      {/* Continue Watching Section */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4 text-[#e50914]" />
-            <h2 className="text-base sm:text-lg font-black text-white">أكمل المشاهدة</h2>
+      {/* Continue Watching Section (only shown when not on downloads-only tab) */}
+      {activeTab !== 'downloads' && (
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-[#e50914]" />
+              <h2 className="text-base sm:text-lg font-black text-white">أكمل المشاهدة</h2>
+            </div>
+            {watchHistory.length > 0 && (
+              <div>
+                {showClearHistoryConfirm ? (
+                  <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 px-2.5 py-1 rounded-xl">
+                    <span className="text-[11px] text-red-300 font-bold">تأكيد المسح؟</span>
+                    <button
+                      onClick={() => {
+                        clearWatchHistory();
+                        setShowClearHistoryConfirm(false);
+                      }}
+                      className="text-[11px] bg-red-600 hover:bg-red-700 text-white font-bold px-2 py-0.5 rounded-md"
+                    >
+                      نعم
+                    </button>
+                    <button
+                      onClick={() => setShowClearHistoryConfirm(false)}
+                      className="text-[11px] bg-white/10 hover:bg-white/20 text-gray-300 px-2 py-0.5 rounded-md"
+                    >
+                      إلغاء
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowClearHistoryConfirm(true)}
+                    className="text-xs text-gray-400 hover:text-red-400 flex items-center gap-1 transition-colors px-2 py-1 rounded-lg hover:bg-white/5"
+                    title="مسح السجل"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>مسح السجل</span>
+                  </button>
+                )}
+              </div>
+            )}
           </div>
-          {watchHistory.length > 0 && (
-            <button
-              onClick={clearWatchHistory}
-              className="text-xs text-gray-400 hover:text-red-400 flex items-center gap-1 transition-colors"
-              title="مسح السجل"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>مسح السجل</span>
-            </button>
-          )}
-        </div>
 
         {watchHistory.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -148,90 +188,172 @@ export const MyListView: React.FC = () => {
           </div>
         )}
       </section>
+      )}
 
-      {/* Saved Items Section */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Bookmark className="w-4 h-4 text-amber-400" />
-            <h2 className="text-base sm:text-lg font-black text-white">المحفوظات وقائمتي</h2>
+      {/* Content Section: Downloads or Saved Items */}
+      {activeTab === 'downloads' ? (
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Download className="w-4 h-4 text-emerald-400" />
+              <h2 className="text-base sm:text-lg font-black text-white">العروض المحمّلة أوفلاين (جاهزة بدون إنترنت)</h2>
+            </div>
+            <span className="text-xs bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 px-3 py-1 rounded-lg font-bold">
+              {downloads.length} أعمال جاهزة
+            </span>
           </div>
 
-          <button
-            onClick={() => setIsNewestFirst(!isNewestFirst)}
-            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white px-2.5 py-1 rounded-lg bg-white/5 border border-white/5 transition-colors"
-          >
-            <ArrowUpDown className="w-3.5 h-3.5" />
-            <span>{isNewestFirst ? 'الأحدث أولاً' : 'الأقدم أولاً'}</span>
-          </button>
-        </div>
-
-        {sortedFavorites.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {sortedFavorites.map(movie => (
-              <div
-                key={`fav-${movie.id}`}
-                onClick={() => navigateTo('details', movie)}
-                className="glass-card p-3 rounded-2xl border border-white/10 flex items-center gap-3.5 cursor-pointer group"
-              >
-                <div className="relative w-16 h-22 sm:w-20 sm:h-26 rounded-xl overflow-hidden shrink-0 bg-gray-900 shadow-md">
-                  <img
-                    src={movie.poster}
-                    alt={movie.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                    loading="lazy"
-                  />
-                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Play className="w-6 h-6 fill-white text-white" />
-                  </div>
-                </div>
-
-                <div className="flex-1 min-w-0 text-right">
-                  <div className="flex items-center gap-1.5 text-[10px] text-amber-400 font-bold mb-1">
-                    {movie.type === 'مسلسل' ? <Tv className="w-3 h-3" /> : <Film className="w-3 h-3" />}
-                    <span>{movie.type}</span>
-                    <span>•</span>
-                    <span>★ {movie.rating}</span>
-                  </div>
-
-                  <h3 className="text-xs sm:text-sm font-bold text-white truncate group-hover:text-[#e50914] transition-colors">
-                    {movie.title}
-                  </h3>
-
-                  <p className="text-xs text-gray-400 line-clamp-1 mt-1 font-normal">
-                    {movie.overview}
-                  </p>
-                </div>
-
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleFavorite(movie.id);
-                  }}
-                  className="p-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-[#e50914] border border-red-500/20 active:scale-90 transition-all shrink-0"
-                  title="إزالة من قائمتي"
+          {downloads.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {downloads.map(item => (
+                <div
+                  key={item.id}
+                  onClick={() => playDownloadedMovie(item)}
+                  className="glass-card p-3 rounded-2xl border border-white/10 flex items-center gap-3.5 cursor-pointer group hover:border-emerald-500/40 transition-colors"
                 >
-                  <Heart className="w-4 h-4 fill-[#e50914]" />
-                </button>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="glass-card p-10 rounded-3xl text-center space-y-3 border border-white/5">
-            <Bookmark className="w-10 h-10 text-gray-500 mx-auto opacity-50" />
-            <h3 className="text-sm font-bold text-gray-300">قائمتك فارغة حالياً</h3>
-            <p className="text-xs text-gray-500 max-w-sm mx-auto">
-              تصفح الأفلام والمسلسلات واضغط على أيقونة القلب لإضافتها إلى قائمتك الخاصة
-            </p>
+                  <div className="relative w-16 h-22 sm:w-20 sm:h-26 rounded-xl overflow-hidden shrink-0 bg-gray-900 shadow-md">
+                    <img
+                      src={item.poster}
+                      alt={item.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                      <Play className="w-6 h-6 fill-white text-white group-hover:scale-110 transition-transform" />
+                    </div>
+                  </div>
+
+                  <div className="flex-1 min-w-0 text-right">
+                    <div className="flex items-center gap-1.5 text-[10px] text-emerald-400 font-bold mb-1">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                      <span>{item.quality}</span>
+                      <span>•</span>
+                      <span>{item.size}</span>
+                    </div>
+
+                    <h3 className="text-xs sm:text-sm font-bold text-white truncate group-hover:text-emerald-400 transition-colors">
+                      {item.title}
+                    </h3>
+
+                    <p className="text-[11px] text-gray-400 line-clamp-1 mt-1 font-normal">
+                      تشغيل فوري في المشغل أوفلاين بدون استهلاك بيانات
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeDownload(item.id);
+                    }}
+                    className="p-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 active:scale-90 transition-all shrink-0"
+                    title="حذف من التنزيلات"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="glass-card p-10 rounded-3xl text-center space-y-3 border border-white/5">
+              <Download className="w-10 h-10 text-gray-500 mx-auto opacity-50" />
+              <h3 className="text-sm font-bold text-gray-300">لا توجد تنزيلات أوفلاين حالياً</h3>
+              <p className="text-xs text-gray-500 max-w-sm mx-auto">
+                يمكنك الضغط على زر "تحميل أوفلاين" في أي فيلم أو مسلسل لمشاهدته في أي وقت بدون إنترنت
+              </p>
+              <button
+                onClick={() => setActiveTab('all')}
+                className="bg-[#e50914] text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-lg hover:bg-[#ff1f2d] transition-all"
+              >
+                تصفح قائمتك للتحميل
+              </button>
+            </div>
+          )}
+        </section>
+      ) : (
+        /* Saved Items Section */
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Bookmark className="w-4 h-4 text-amber-400" />
+              <h2 className="text-base sm:text-lg font-black text-white">المحفوظات وقائمتي</h2>
+            </div>
+
             <button
-              onClick={() => navigateTo('home')}
-              className="bg-[#e50914] text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-lg hover:bg-[#ff1f2d] transition-all"
+              onClick={() => setIsNewestFirst(!isNewestFirst)}
+              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white px-2.5 py-1 rounded-lg bg-white/5 border border-white/5 transition-colors"
             >
-              استكشف الأفلام والمسلسلات
+              <ArrowUpDown className="w-3.5 h-3.5" />
+              <span>{isNewestFirst ? 'الأحدث أولاً' : 'الأقدم أولاً'}</span>
             </button>
           </div>
-        )}
-      </section>
+
+          {sortedFavorites.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {sortedFavorites.map(movie => (
+                <div
+                  key={`fav-${movie.id}`}
+                  onClick={() => navigateTo('details', movie)}
+                  className="glass-card p-3 rounded-2xl border border-white/10 flex items-center gap-3.5 cursor-pointer group"
+                >
+                  <div className="relative w-16 h-22 sm:w-20 sm:h-26 rounded-xl overflow-hidden shrink-0 bg-gray-900 shadow-md">
+                    <img
+                      src={movie.poster}
+                      alt={movie.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Play className="w-6 h-6 fill-white text-white" />
+                    </div>
+                  </div>
+
+                  <div className="flex-1 min-w-0 text-right">
+                    <div className="flex items-center gap-1.5 text-[10px] text-amber-400 font-bold mb-1">
+                      {movie.type === 'مسلسل' ? <Tv className="w-3 h-3" /> : <Film className="w-3 h-3" />}
+                      <span>{movie.type}</span>
+                      <span>•</span>
+                      <span>★ {movie.rating}</span>
+                    </div>
+
+                    <h3 className="text-xs sm:text-sm font-bold text-white truncate group-hover:text-[#e50914] transition-colors">
+                      {movie.title}
+                    </h3>
+
+                    <p className="text-xs text-gray-400 line-clamp-1 mt-1 font-normal">
+                      {movie.overview}
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleFavorite(movie.id);
+                    }}
+                    className="p-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-[#e50914] border border-red-500/20 active:scale-90 transition-all shrink-0"
+                    title="إزالة من قائمتي"
+                  >
+                    <Heart className="w-4 h-4 fill-[#e50914]" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="glass-card p-10 rounded-3xl text-center space-y-3 border border-white/5">
+              <Bookmark className="w-10 h-10 text-gray-500 mx-auto opacity-50" />
+              <h3 className="text-sm font-bold text-gray-300">قائمتك فارغة حالياً</h3>
+              <p className="text-xs text-gray-500 max-w-sm mx-auto">
+                تصفح الأفلام والمسلسلات واضغط على أيقونة القلب لإضافتها إلى قائمتك الخاصة
+              </p>
+              <button
+                onClick={() => navigateTo('home')}
+                className="bg-[#e50914] text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-lg hover:bg-[#ff1f2d] transition-all"
+              >
+                استكشف الأفلام والمسلسلات
+              </button>
+            </div>
+          )}
+        </section>
+      )}
     </div>
   );
 };

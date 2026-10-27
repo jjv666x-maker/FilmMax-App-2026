@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { LiveChannel } from '../types';
+import { mediaOrchestrator } from '../services/mediaSessionOrchestrator';
 import {
   Radio,
   Play,
@@ -35,7 +36,7 @@ interface FloatingReaction {
 }
 
 export const LiveChannelsView: React.FC = () => {
-  const { liveChannels, toggleLiveReminder, navigateTo, showToast, setIsTVRemoteOpen } = useApp();
+  const { liveChannels, toggleLiveReminder, navigateTo, showToast, setIsTVRemoteOpen, movies } = useApp();
   const [selectedChannel, setSelectedChannel] = useState<LiveChannel>(liveChannels[0]);
   const [secondaryChannel, setSecondaryChannel] = useState<LiveChannel | null>(liveChannels[1] || null);
   const [activeCategory, setActiveCategory] = useState<string>('الكل');
@@ -97,6 +98,22 @@ export const LiveChannelsView: React.FC = () => {
 
   const filteredChannels =
     activeCategory === 'الكل' ? liveChannels : liveChannels.filter(c => c.category === activeCategory);
+
+  // Central Playback & Audio-Focus Orchestrator Integration
+  useEffect(() => {
+    mediaOrchestrator.requestFocus("live", selectedChannel?.id);
+    const unsubscribe = mediaOrchestrator.subscribe((activeDomain) => {
+      if (activeDomain !== "live") {
+        setIsPlaying(false);
+        if (mainVideoRef.current) mainVideoRef.current.pause();
+        if (secondaryVideoRef.current) secondaryVideoRef.current.pause();
+      }
+    });
+    return () => {
+      unsubscribe();
+      mediaOrchestrator.releaseFocus("live");
+    };
+  }, [selectedChannel?.id]);
 
   // Sync Video Ref when using MP4 mode
   useEffect(() => {
@@ -670,6 +687,29 @@ export const LiveChannelsView: React.FC = () => {
                   </span>
                 </h2>
                 <p className="text-xs text-gray-300 max-w-xl">{selectedChannel.currentShow.description}</p>
+                {(() => {
+                  const matched = movies?.find(m => 
+                    m.title.toLowerCase().includes(currentShowTitle.toLowerCase()) || 
+                    currentShowTitle.toLowerCase().includes(m.title.toLowerCase())
+                  );
+                  if (matched) {
+                    return (
+                      <div className="pt-1">
+                        <button
+                          onClick={() => {
+                            mediaOrchestrator.requestFocus("cinema", matched.id);
+                            navigateTo("details", matched);
+                          }}
+                          className="px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 font-bold text-xs flex items-center gap-1.5 transition-all shadow"
+                        >
+                          <Film className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>العمل متوفر بجودة 4K كاملة في المكتبة — مشاهدة الآن من البداية 🍿</span>
+                        </button>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
 
               <button
@@ -802,6 +842,28 @@ export const LiveChannelsView: React.FC = () => {
                           يعرض الآن
                         </span>
                       )}
+                      {(() => {
+                        const matched = movies?.find(m => 
+                          m.title.toLowerCase().includes(item.title.toLowerCase()) || 
+                          item.title.toLowerCase().includes(m.title.toLowerCase())
+                        );
+                        if (matched) {
+                          return (
+                            <button
+                              onClick={() => {
+                                mediaOrchestrator.requestFocus("cinema", matched.id);
+                                navigateTo("details", matched);
+                              }}
+                              className="text-[9px] bg-[#e50914]/20 hover:bg-[#e50914] text-white border border-[#e50914]/40 px-2 py-0.5 rounded-md font-bold shadow transition-all active:scale-95 flex items-center gap-1"
+                              title="مشاهدة العمل بدقة 4K في مكتبة الأفلام"
+                            >
+                              <Play className="w-2.5 h-2.5 fill-current" />
+                              <span>شاهد 4K في المكتبة</span>
+                            </button>
+                          );
+                        }
+                        return null;
+                      })()}
                       {item.status === 'past' && (
                         <button
                           onClick={() => handleCatchUpPlay(item.title)}

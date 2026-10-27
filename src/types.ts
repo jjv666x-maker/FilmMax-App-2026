@@ -47,7 +47,7 @@ export interface Movie {
   rating: number | string;
   poster: string;
   backdrop?: string;
-  type: 'movie' | 'tv' | 'فيلم' | 'مسلسل';
+  type: 'movie' | 'tv' | 'فيلم' | 'مسلسل' | 'أنمي';
   year: string;
   videoUrl: string;
   youtubeKey?: string;
@@ -58,7 +58,7 @@ export interface Movie {
   isTrending?: boolean;
   isFeatured?: boolean;
   ageRating?: string;
-  quality?: '4K HDR' | '4K Ultra HD' | 'FHD' | 'HD';
+  quality?: '4K HDR' | '4K Ultra HD' | '4K IMAX' | 'FHD' | 'HD';
   cast?: Array<{ name: string; role: string; photo?: string }>;
   episodes?: Episode[];
   selectedEpisode?: number;
@@ -81,6 +81,7 @@ export interface ReelComment {
 
 export interface ReelItem {
   id: string | number;
+  createdAt?: number;
   title: string;
   category: string;
   videoUrl: string;
@@ -119,6 +120,8 @@ export interface ReelItem {
   tags: string[];
   comments?: ReelComment[];
   isUserCreated?: boolean;
+  userId?: string | number;
+  thumbnailUrl?: string;
 }
 
 export interface LiveChannel {
@@ -170,11 +173,21 @@ export interface UserProfile {
   name: string;
   username?: string;
   email: string;
+  role?: string;
   phone: string;
   avatar: string;
   coverPhoto?: string;
+  coverType?: 'image' | 'video';
+  coverVideo?: string;
+  coverPosition?: 'object-center' | 'object-top' | 'object-bottom';
+  coverOffsetY?: number;
+  coverZoom?: number;
+  coverRotation?: number;
   bio?: string;
   favoriteGenre?: string;
+  favoriteGenres?: string[];
+  selectedGenreIds?: string[];
+  password?: string;
   avatarFrame?: 'gold' | 'neon' | 'fire' | 'diamond' | 'none';
   level?: number;
   levelTitle?: string;
@@ -199,6 +212,10 @@ export interface UserProfile {
     unlockedAt?: string;
     isUnlocked: boolean;
   }>;
+  nameColorStyle?: { id: string; label: string; className?: string; color?: string };
+  nameCustomColor?: string;
+  nameMedia?: string;
+  nameMediaType?: 'image' | 'video';
 }
 
 export interface DownloadItem {
@@ -309,5 +326,17 @@ export interface ContinueWatching {
   lastWatched: number;
   progress: number;
   type: 'movie' | 'tv' | 'episode';
+}
+
+export interface UserStory {
+  id: string;
+  userId: string;
+  userName: string;
+  userAvatar: string;
+  mediaUrl: string;
+  mediaType: 'image' | 'video';
+  caption?: string;
+  createdAt: number;
+  duration?: number;
 }
 

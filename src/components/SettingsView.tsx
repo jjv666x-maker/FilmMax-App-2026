@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { ScreenId } from '../types';
 import {
@@ -45,10 +45,24 @@ import {
   Flame,
   QrCode,
   Zap,
-  Plus
+  Plus,
+  Layers
 } from 'lucide-react';
 import { SUPPORTED_LANGUAGES, SupportedLanguage } from '../i18n/translations';
 import { securityShield } from '../services/securityEngine';
+import { TikTokCoverCropModal } from './TikTokCoverCropModal';
+import { VerifiedBadge } from './ProfileView';
+
+const NAME_COLOR_PRESETS = [
+  { id: 'white', label: 'أبيض', className: 'text-white' },
+  { id: 'red', label: 'أحمر', className: 'text-red-500' },
+  { id: 'gold', label: 'ذهبي', className: 'text-amber-400' },
+  { id: 'cyan', label: 'سماوي', className: 'text-cyan-400' },
+  { id: 'purple', label: 'بنفسجي', className: 'text-purple-400' },
+  { id: 'emerald', label: 'زمردي', className: 'text-emerald-400' },
+  { id: 'gradient-red-gold', label: 'ناري', className: 'bg-gradient-to-r from-red-500 via-rose-500 to-amber-400 bg-clip-text text-transparent' },
+  { id: 'gradient-cyan-purple', label: 'نيون', className: 'bg-gradient-to-r from-cyan-400 via-indigo-500 to-purple-500 bg-clip-text text-transparent' }
+];
 
 export const SettingsView: React.FC = () => {
   const {
@@ -57,6 +71,7 @@ export const SettingsView: React.FC = () => {
     userProfile,
     updateUserProfile,
     userAccounts,
+    reels,
     addNewAccount,
     switchAccount,
     setIsAccountSwitcherOpen,
@@ -84,11 +99,23 @@ export const SettingsView: React.FC = () => {
     showToast,
     replayIntro,
     openWelcomeSlides,
-    openAuthScreen
+    openAuthScreen,
+    setIsIngestionStudioOpen
   } = useApp();
 
   // Sub-screen selector
   const [currentSubScreen, setCurrentSubScreen] = useState<string>('main');
+
+  // Sync internal sub-screen with activeScreen from context
+  React.useEffect(() => {
+    if (activeScreen === 'settings') {
+      setCurrentSubScreen('main');
+    } else if (activeScreen === 'personal') {
+      setCurrentSubScreen('account');
+    } else {
+      setCurrentSubScreen(activeScreen);
+    }
+  }, [activeScreen]);
 
   // Edit Profile Form State
   const [profileName, setProfileName] = useState(userProfile.name);
@@ -101,6 +128,149 @@ export const SettingsView: React.FC = () => {
     userProfile.avatarFrame || 'diamond'
   );
   const [profileTab, setProfileTab] = useState<'info' | 'stats' | 'card' | 'accounts'>('info');
+  const [isCoverModalOpen, setIsCoverModalOpen] = useState(false);
+
+  // Name Appearance Customization State
+  const [nameCustomColor, setNameCustomColor] = useState<string>(() => {
+    try {
+      return localStorage.getItem('filmmax_name_custom_color') || userProfile.nameCustomColor || '';
+    } catch {
+      return '';
+    }
+  });
+
+  const [nameMedia, setNameMedia] = useState<string>(() => {
+    try {
+      return localStorage.getItem('filmmax_name_media') || userProfile.nameMedia || '';
+    } catch {
+      return '';
+    }
+  });
+
+  const [nameMediaType, setNameMediaType] = useState<'image' | 'video'>(() => {
+    try {
+      return (localStorage.getItem('filmmax_name_media_type') as any) || userProfile.nameMediaType || 'image';
+    } catch {
+      return 'image';
+    }
+  });
+
+  const [selectedColorPresetId, setSelectedColorPresetId] = useState<string>(() => {
+    try {
+      return localStorage.getItem('filmmax_name_color_preset') || userProfile.nameColorStyle?.id || 'white';
+    } catch {
+      return 'white';
+    }
+  });
+
+  const nameColorInputRef = useRef<HTMLInputElement>(null);
+  const nameMediaInputRef = useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    const handleStyleSync = () => {
+      try {
+        setNameMedia(localStorage.getItem('filmmax_name_media') || '');
+        setNameMediaType((localStorage.getItem('filmmax_name_media_type') as any) || 'image');
+        setNameCustomColor(localStorage.getItem('filmmax_name_custom_color') || '');
+        setSelectedColorPresetId(localStorage.getItem('filmmax_name_color_preset') || 'white');
+      } catch {}
+    };
+    window.addEventListener('filmmax_name_style_updated', handleStyleSync);
+    window.addEventListener('storage', handleStyleSync);
+    return () => {
+      window.removeEventListener('filmmax_name_style_updated', handleStyleSync);
+      window.removeEventListener('storage', handleStyleSync);
+    };
+  }, []);
+
+  const handleSelectPresetColor = (preset: typeof NAME_COLOR_PRESETS[0]) => {
+    setSelectedColorPresetId(preset.id);
+    setNameCustomColor('');
+    setNameMedia('');
+
+    localStorage.setItem('filmmax_name_color_preset', preset.id);
+    localStorage.removeItem('filmmax_name_custom_color');
+    localStorage.removeItem('filmmax_name_media');
+    localStorage.removeItem('filmmax_name_media_type');
+
+    updateUserProfile({
+      nameColorStyle: preset,
+      nameCustomColor: undefined,
+      nameMedia: undefined,
+      nameMediaType: undefined
+    });
+
+    window.dispatchEvent(new Event('filmmax_name_style_updated'));
+    showToast(`تم تطبيق لون الاسم: ${preset.label} 🎨`);
+  };
+
+  const handleCustomColorPicker = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const chosenColor = e.target.value;
+    setNameCustomColor(chosenColor);
+    setNameMedia('');
+    setSelectedColorPresetId('custom');
+
+    localStorage.setItem('filmmax_name_custom_color', chosenColor);
+    localStorage.removeItem('filmmax_name_media');
+    localStorage.removeItem('filmmax_name_media_type');
+    localStorage.setItem('filmmax_name_color_preset', 'custom');
+
+    updateUserProfile({
+      nameCustomColor: chosenColor,
+      nameMedia: undefined,
+      nameMediaType: undefined,
+      nameColorStyle: { id: 'custom', label: 'مخصص', className: '' }
+    });
+
+    window.dispatchEvent(new Event('filmmax_name_style_updated'));
+    showToast('تم تغيير لون الاسم وحفظه بنجاح 🎨');
+  };
+
+  const handleNameMediaUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const isVideo = file.type.startsWith('video/');
+    const isImage = file.type.startsWith('image/');
+
+    if (!isVideo && !isImage) {
+      showToast('يرجى اختيار ملف صورة أو فيديو صالح');
+      return;
+    }
+
+    if (file.size > 8 * 1024 * 1024) {
+      showToast('حجم الملف كبير جداً للتخزين، يرجى اختيار ملف أقل من 8 ميجابايت');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const base64Data = reader.result as string;
+        localStorage.setItem('filmmax_name_media', base64Data);
+        localStorage.setItem('filmmax_name_media_type', isVideo ? 'video' : 'image');
+        localStorage.removeItem('filmmax_name_custom_color');
+
+        setNameMedia(base64Data);
+        setNameMediaType(isVideo ? 'video' : 'image');
+        setNameCustomColor('');
+        setSelectedColorPresetId('');
+
+        updateUserProfile({
+          nameMedia: base64Data,
+          nameMediaType: isVideo ? 'video' : 'image',
+          nameCustomColor: undefined,
+          nameColorStyle: undefined
+        });
+
+        window.dispatchEvent(new Event('filmmax_name_style_updated'));
+        showToast(isVideo ? 'تم تطبيق الفيديو داخل الاسم بنجاح 🎬✨' : 'تم تطبيق الصورة داخل الاسم بنجاح 🖼️✨');
+      } catch {
+        showToast('تعذر حفظ الملف في التخزين المحلي، يرجى استخدام ملف بحجم أصغر');
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   // 2FA code test state
   const [test2FACode, setTest2FACode] = useState<string>('');
@@ -115,6 +285,8 @@ export const SettingsView: React.FC = () => {
 
   // Cache storage size
   const [cacheSize, setCacheSize] = useState('32.4 MB');
+  const [showClearCacheConfirm, setShowClearCacheConfirm] = useState<boolean>(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState<boolean>(false);
 
   // Active sessions mock list
   const [activeSessions, setActiveSessions] = useState([
@@ -201,8 +373,15 @@ export const SettingsView: React.FC = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setCurrentSubScreen('main')}
-              className="p-2.5 rounded-2xl bg-[#151922] text-gray-300 hover:text-white border border-white/10 active:scale-95 transition-all"
+              onClick={() => {
+                if (activeScreen === 'personal') {
+                  navigateTo('account');
+                } else {
+                  setCurrentSubScreen('main');
+                }
+              }}
+              className="p-2.5 rounded-2xl bg-[#151922] text-gray-300 hover:text-white border border-white/10 active:scale-95 transition-all cursor-pointer"
+              title="رجوع للملف الشخصي"
             >
               <ArrowRight className="w-5 h-5" />
             </button>
@@ -221,17 +400,43 @@ export const SettingsView: React.FC = () => {
 
         {/* Hero Profile Banner */}
         <div className="glass-card rounded-3xl border border-white/10 overflow-hidden shadow-2xl relative">
-          {/* Cover Photo */}
-          <div className="h-36 sm:h-44 w-full relative overflow-hidden bg-gradient-to-r from-red-950 via-purple-950 to-slate-900">
-            <img
-              src={userProfile.coverPhoto || 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=1200'}
-              alt="Cover"
-              className="w-full h-full object-cover opacity-50"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#0c0f17] via-transparent to-black/30" />
-            <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-bold text-gray-300 border border-white/10 flex items-center gap-1.5">
-              <Zap className="w-3 h-3 text-yellow-400" />
-              <span>تصفح أسرع 3x بدون إعلانات</span>
+          {/* Cover Photo / Video Banner */}
+          <div className="h-36 sm:h-48 w-full relative overflow-hidden bg-gradient-to-r from-red-950 via-purple-950 to-slate-900 group">
+            {userProfile.coverType === 'video' || userProfile.coverVideo ? (
+              <video
+                src={userProfile.coverVideo || userProfile.coverPhoto}
+                autoPlay
+                loop
+                muted
+                playsInline
+                className={`w-full h-full object-cover ${userProfile.coverPosition || 'object-center'} opacity-80 transition-all duration-300`}
+                style={{
+                  transform: `scale(${userProfile.coverZoom ?? 1}) translateY(${userProfile.coverOffsetY ?? 0}%)`
+                }}
+              />
+            ) : (
+              <img
+                src={userProfile.coverPhoto || 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=1200'}
+                alt="Cover"
+                className={`w-full h-full object-cover opacity-80 ${userProfile.coverPosition || 'object-center'} transition-all duration-300`}
+                style={{
+                  transform: `scale(${userProfile.coverZoom ?? 1}) translateY(${userProfile.coverOffsetY ?? 0}%)`
+                }}
+              />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0c0f17] via-transparent to-black/30 pointer-events-none" />
+            
+            {/* TikTok Feature: تغيير الخلفية Button */}
+            <div className="absolute top-3 left-3 z-20 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsCoverModalOpen(true)}
+                className="px-3.5 py-1.5 bg-black/80 hover:bg-black/95 backdrop-blur-md rounded-xl text-white text-xs font-black flex items-center gap-1.5 border border-white/20 shadow-xl transition-all active:scale-95 cursor-pointer"
+                title="تغيير الخلفية وقصها"
+              >
+                <Camera className="w-3.5 h-3.5 text-amber-400" />
+                <span>تغيير الخلفية</span>
+              </button>
             </div>
           </div>
 
@@ -281,7 +486,31 @@ export const SettingsView: React.FC = () => {
               {/* Title & Stats Preview */}
               <div className="min-w-0 pb-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h2 className="text-xl sm:text-2xl font-black text-white truncate">{userProfile.name}</h2>
+                  <h2
+                    className={`text-xl sm:text-2xl font-black truncate transition-colors duration-200 ${
+                      nameMedia
+                        ? ''
+                        : nameCustomColor
+                        ? ''
+                        : (NAME_COLOR_PRESETS.find(p => p.id === selectedColorPresetId)?.className || 'text-white')
+                    }`}
+                    style={
+                      nameMedia ? {
+                        backgroundImage: `url(${nameMedia})`,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                        WebkitBackgroundClip: 'text',
+                        backgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        color: 'transparent'
+                      } : nameCustomColor ? {
+                        color: nameCustomColor
+                      } : undefined
+                    }
+                  >
+                    {userProfile.name}
+                  </h2>
+                  <VerifiedBadge className="w-5 h-5 shrink-0" />
                   <span className="text-xs bg-cyan-500/20 text-cyan-300 px-2 py-0.5 rounded-full font-bold border border-cyan-500/30">
                     @{userProfile.username || 'mohamed_cinema_vip'}
                   </span>
@@ -436,6 +665,84 @@ export const SettingsView: React.FC = () => {
                 </div>
               </div>
 
+              {/* شريط دوائر الألوان وتخصيص مظهر الاسم */}
+              <div className="text-xs">
+                <label className="block text-gray-300 font-bold mb-2">تخصيص لون ومظهر الاسم:</label>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {NAME_COLOR_PRESETS.map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => handleSelectPresetColor(preset)}
+                      className={`px-2.5 py-1 rounded-xl text-[11px] font-black border transition-all cursor-pointer flex items-center gap-1.5 ${
+                        selectedColorPresetId === preset.id && !nameCustomColor && !nameMedia
+                          ? 'bg-sky-500/20 text-white border-sky-400 shadow-[0_0_12px_rgba(0,149,246,0.4)] scale-105'
+                          : 'bg-white/5 text-gray-300 border-white/10 hover:bg-white/10'
+                      }`}
+                    >
+                      <span 
+                        className={`w-2.5 h-2.5 rounded-full ${
+                          preset.id === 'white' ? 'bg-white' :
+                          preset.id === 'red' ? 'bg-red-500' :
+                          preset.id === 'gold' ? 'bg-amber-400' :
+                          preset.id === 'cyan' ? 'bg-cyan-400' :
+                          preset.id === 'purple' ? 'bg-purple-400' :
+                          preset.id === 'emerald' ? 'bg-emerald-400' :
+                          preset.id === 'gradient-red-gold' ? 'bg-gradient-to-r from-red-500 to-amber-400' :
+                          'bg-gradient-to-r from-cyan-400 to-purple-500'
+                        }`}
+                      />
+                      <span>{preset.label}</span>
+                    </button>
+                  ))}
+
+                  {/* الزر الأول: جميع الألوان */}
+                  <button
+                    type="button"
+                    onClick={() => nameColorInputRef.current?.click()}
+                    className={`px-2.5 py-1 rounded-xl text-[11px] font-black border transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 ${
+                      nameCustomColor && !nameMedia
+                        ? 'bg-sky-500/20 text-white border-sky-400 shadow-[0_0_12px_rgba(0,149,246,0.4)] scale-105'
+                        : 'bg-white/5 text-gray-300 border-white/10 hover:bg-white/10'
+                    }`}
+                  >
+                    <span 
+                      className="w-2.5 h-2.5 rounded-full border border-white/40"
+                      style={{ backgroundColor: nameCustomColor || '#ff0055' }}
+                    />
+                    <span>جميع الألوان</span>
+                  </button>
+                  <input
+                    ref={nameColorInputRef}
+                    type="color"
+                    value={nameCustomColor || '#ffffff'}
+                    onChange={handleCustomColorPicker}
+                    className="hidden"
+                  />
+
+                  {/* الزر الثاني: إضافة صورة/فيديو للاسم */}
+                  <button
+                    type="button"
+                    onClick={() => nameMediaInputRef.current?.click()}
+                    className={`px-2.5 py-1 rounded-xl text-[11px] font-black border transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 ${
+                      nameMedia
+                        ? 'bg-gradient-to-r from-purple-500/30 to-pink-500/30 text-white border-pink-400 shadow-[0_0_12px_rgba(236,72,153,0.4)] scale-105'
+                        : 'bg-white/5 text-gray-300 border-white/10 hover:bg-white/10'
+                    }`}
+                  >
+                    <span className="text-[10px]">✨</span>
+                    <span>إضافة صورة/فيديو للاسم</span>
+                  </button>
+                  <input
+                    ref={nameMediaInputRef}
+                    type="file"
+                    accept="image/*,video/*"
+                    onChange={handleNameMediaUpload}
+                    className="hidden"
+                  />
+                </div>
+              </div>
+
               {/* Bio & Tagline */}
               <div className="text-xs">
                 <label className="block text-gray-300 font-bold mb-1.5">النبذة التعريفية (Bio):</label>
@@ -504,8 +811,14 @@ export const SettingsView: React.FC = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setCurrentSubScreen('main')}
-                  className="px-6 py-3.5 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl font-bold text-xs"
+                  onClick={() => {
+                    if (activeScreen === 'personal') {
+                      navigateTo('account');
+                    } else {
+                      setCurrentSubScreen('main');
+                    }
+                  }}
+                  className="px-6 py-3.5 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl font-bold text-xs cursor-pointer active:scale-95 transition-all"
                 >
                   رجوع
                 </button>
@@ -1642,6 +1955,27 @@ export const SettingsView: React.FC = () => {
         </div>
 
         <div
+          onClick={() => setIsIngestionStudioOpen(true)}
+          className="p-4 sm:p-5 flex items-center justify-between gap-3 hover:bg-white/5 cursor-pointer transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center justify-center">
+              <Layers className="w-5 h-5 text-cyan-400" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <b className="text-sm text-white block">خط معالجة واستيعاب الفيديوهات (Video Ingestion & HLS ABR)</b>
+                <span className="text-[9px] bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-1.5 py-0.5 rounded-full font-bold">
+                  FFmpeg Ladder
+                </span>
+              </div>
+              <small className="text-xs text-gray-400">تقطيع وتشفير الأفلام إلى 1080p, 720p, 480p وتوليد ملفات master.m3u8 وترجمة WebVTT</small>
+            </div>
+          </div>
+          <ChevronLeft className="w-5 h-5 text-gray-500" />
+        </div>
+
+        <div
           onClick={() => setCurrentSubScreen('security')}
           className="p-4 sm:p-5 flex items-center justify-between gap-3 hover:bg-white/5 cursor-pointer transition-colors"
         >
@@ -1732,7 +2066,7 @@ export const SettingsView: React.FC = () => {
         </div>
 
         {/* Clear Cache Row */}
-        <div className="p-4 sm:p-5 flex items-center justify-between gap-3">
+        <div className="p-4 sm:p-5 flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-orange-500/15 border border-orange-500/30 text-orange-400 flex items-center justify-center">
               <RotateCcw className="w-5 h-5" />
@@ -1742,12 +2076,33 @@ export const SettingsView: React.FC = () => {
               <small className="text-xs text-gray-400">المساحة المستخدمة حالياً: {cacheSize}</small>
             </div>
           </div>
-          <button
-            onClick={handleClearCache}
-            className="px-4 py-2 bg-white/10 hover:bg-red-500/20 hover:text-red-400 text-xs font-bold rounded-xl border border-white/10 transition-all"
-          >
-            مسح الآن
-          </button>
+          {showClearCacheConfirm ? (
+            <div className="flex items-center gap-2 bg-orange-500/10 border border-orange-500/20 px-3 py-1.5 rounded-xl">
+              <span className="text-xs text-orange-300 font-bold">تأكيد المسح؟</span>
+              <button
+                onClick={() => {
+                  handleClearCache();
+                  setShowClearCacheConfirm(false);
+                }}
+                className="px-2.5 py-1 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-lg"
+              >
+                نعم، مسح
+              </button>
+              <button
+                onClick={() => setShowClearCacheConfirm(false)}
+                className="px-2 py-1 bg-white/10 hover:bg-white/20 text-gray-300 text-xs rounded-lg"
+              >
+                إلغاء
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowClearCacheConfirm(true)}
+              className="px-4 py-2 bg-white/10 hover:bg-red-500/20 hover:text-red-400 text-xs font-bold rounded-xl border border-white/10 transition-all"
+            >
+              مسح الآن
+            </button>
+          )}
         </div>
       </div>
 
@@ -1819,22 +2174,62 @@ export const SettingsView: React.FC = () => {
       </div>
 
       {/* Logout / Switch Account Action */}
-      <button
-        onClick={() => {
-          openAuthScreen();
-          showToast('تم تسجيل الخروج. يمكنك الدخول أو التبديل لحساب آخر');
-        }}
-        className="w-full py-3.5 rounded-2xl bg-red-500/10 hover:bg-red-500/20 text-[#e50914] font-black text-xs border border-red-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
-      >
-        <LogOut className="w-4 h-4" />
-        <span>تسجيل الخروج والتبديل لحساب آخر</span>
-      </button>
+      {showLogoutConfirm ? (
+        <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-center space-y-3">
+          <p className="text-xs font-bold text-white">هل أنت متأكد من رغبتك في تسجيل الخروج والتبديل لحساب آخر؟</p>
+          <div className="flex items-center justify-center gap-3">
+            <button
+              onClick={() => {
+                setShowLogoutConfirm(false);
+                openAuthScreen();
+                showToast('تم تسجيل الخروج. يمكنك الدخول أو التبديل لحساب آخر 👋');
+              }}
+              className="px-5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-black text-xs active:scale-95 transition-all shadow-md shadow-red-600/30"
+            >
+              نعم، تسجيل الخروج
+            </button>
+            <button
+              onClick={() => setShowLogoutConfirm(false)}
+              className="px-5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-gray-300 font-bold text-xs active:scale-95 transition-all"
+            >
+              إلغاء التراجع
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => setShowLogoutConfirm(true)}
+          className="w-full py-3.5 rounded-2xl bg-red-500/10 hover:bg-red-500/20 text-[#e50914] font-black text-xs border border-red-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+        >
+          <LogOut className="w-4 h-4" />
+          <span>تسجيل الخروج والتبديل لحساب آخر</span>
+        </button>
+      )}
 
       {/* Version Note */}
       <div className="text-center text-gray-600 text-[11px] space-y-0.5">
         <p>FilmMax Cinema VIP — الإصدار 3.0.0 Pro</p>
         <p>جميع الحقوق محفوظة © 2026</p>
       </div>
+
+      {/* TikTok Profile Background & Crop Modal */}
+      <TikTokCoverCropModal
+        isOpen={isCoverModalOpen}
+        onClose={() => setIsCoverModalOpen(false)}
+        currentUser={userProfile}
+        userReels={reels}
+        onSaveCover={(coverData) => {
+          updateUserProfile({
+            coverPhoto: coverData.coverPhoto,
+            coverVideo: coverData.coverVideo,
+            coverType: coverData.coverType,
+            coverPosition: coverData.coverPosition,
+            coverOffsetY: coverData.coverOffsetY,
+            coverZoom: coverData.coverZoom
+          });
+          showToast('تم تحديث وقص خلفية الحساب بنجاح 🎬✨');
+        }}
+      />
     </div>
   );
 };

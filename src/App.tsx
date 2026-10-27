@@ -24,6 +24,10 @@ import { SettingsView } from './components/SettingsView';
 import { WatchPartyView } from './components/WatchPartyView';
 import { TriviaQuizView } from './components/TriviaQuizView';
 import { KidsModeView } from './components/KidsModeView';
+import { VideoIngestionStudioModal } from './components/VideoIngestionStudioModal';
+import { NetflixArchitectureModal } from './components/NetflixArchitectureModal';
+import { MoreSidebar } from './components/MoreSidebar';
+import { ProfileView } from './components/ProfileView';
 import { TVRemoteModal } from './components/TVRemoteModal';
 import {
   PremiumModal,
@@ -36,7 +40,7 @@ import {
 } from './components/Modals';
 
 const AppContent: React.FC = () => {
-  const { activeScreen, theme, startupStage, setStartupStage, isTVRemoteOpen, setIsTVRemoteOpen } = useApp();
+  const { activeScreen, theme, startupStage, setStartupStage, isTVRemoteOpen, setIsTVRemoteOpen, isNetflixArchOpen, setIsNetflixArchOpen, showToast } = useApp();
 
   useEffect(() => {
     securityShield.init();
@@ -99,8 +103,9 @@ const AppContent: React.FC = () => {
         return <TriviaQuizView />;
       case 'kids':
         return <KidsModeView />;
-      case 'settings':
       case 'account':
+        return <ProfileView />;
+      case 'settings':
       case 'subscription':
       case 'quality':
       case 'notifications':
@@ -131,7 +136,7 @@ const AppContent: React.FC = () => {
 
   return (
     <div
-      className={`min-h-screen ${themeClasses} relative overflow-hidden flex flex-col font-sans selection:bg-[#e50914] selection:text-white transition-colors duration-300`}
+      className={`min-h-screen ${themeClasses} relative overflow-x-hidden flex flex-col font-sans selection:bg-[#e50914] selection:text-white transition-colors duration-300`}
     >
       {/* Frosted Glass Radial Background Highlights */}
       <div className="fixed inset-0 pointer-events-none z-0">
@@ -180,7 +185,10 @@ const AppContent: React.FC = () => {
       <AIChatSupportModal />
       <NotificationDrawer />
       <AccountSwitcherModal />
+      <VideoIngestionStudioModal />
+      <NetflixArchitectureModal isOpen={isNetflixArchOpen} onClose={() => setIsNetflixArchOpen(false)} showToast={showToast} />
       <TVRemoteModal isOpen={isTVRemoteOpen} onClose={() => setIsTVRemoteOpen(false)} />
+      <MoreSidebar />
       <GlobalToast />
     </div>
   );

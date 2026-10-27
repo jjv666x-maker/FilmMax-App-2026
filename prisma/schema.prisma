@@ -1,0 +1,96 @@
+// FilmMax Cinema - Production Relational Schema
+// To switch to PostgreSQL in Cloud SQL or Neon:
+// 1. Change provider from "sqlite" to "postgresql"
+// 2. Set url = env("DATABASE_URL")
+// 3. Run: npx prisma migrate dev --name init_filmmax_db
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id             String          @id @default(uuid())
+  email          String          @unique
+  name           String
+  avatar         String?
+  role           String          @default("user") // "user", "vip_member", "admin"
+  phone          String?
+  passwordHash   String?
+  salt           String?
+  preferences    String?         // JSON metadata: favorite genres, avatar frame, level
+  isPremium      Boolean         @default(false)
+  premiumExpiry  String?
+  sessionToken   String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  subscription   Subscription?
+  sessions       Session[]
+  watchlist      Watchlist[]
+  watchHistory   WatchHistory[]
+
+  @@index([email])
+  @@index([sessionToken])
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@index([userId])
+}
+
+model Subscription {
+  id           String    @id @default(uuid())
+  userId       String    @unique
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status       String    @default("active") // "active", "cancelled", "expired"
+  plan         String    @default("monthly") // "weekly", "monthly", "yearly"
+  stripeSubId  String?
+  price        Float     @default(12000)
+  startDate    DateTime  @default(now())
+  expiresAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+model Watchlist {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mediaId   String
+  mediaType String   @default("movie") // "movie", "series", "video"
+  title     String
+  poster    String?
+  addedAt   DateTime @default(now())
+
+  @@unique([userId, mediaId])
+  @@index([userId])
+}
+
+model WatchHistory {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mediaId   String
+  mediaType String   @default("movie")
+  title     String
+  poster    String?
+  progress  Float    @default(0) // Watched percentage or seconds
+  duration  Float    @default(0)
+  watchedAt DateTime @default(now())
+
+  @@unique([userId, mediaId])
+  @@index([userId])
+}

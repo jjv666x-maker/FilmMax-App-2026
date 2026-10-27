@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { ReelItem, Movie } from '../types';
+import { mediaOrchestrator } from '../services/mediaSessionOrchestrator';
 import { ReelsCommentsSheet } from './reels/ReelsCommentsSheet';
 import { ReelsCreatorProfile } from './reels/ReelsCreatorProfile';
 import { ReelsEditProfile } from './reels/ReelsEditProfile';
@@ -12,6 +13,7 @@ import { ReelsLiveStream } from './reels/ReelsLiveStream';
 import { ReelsVIPHub } from './reels/ReelsVIPHub';
 import { ReelsSubscriptions } from './reels/ReelsSubscriptions';
 import { TikTokProfileModal } from './TikTokProfileModal';
+import { VerifiedBadge } from './ProfileView';
 import {
   Heart,
   MessageCircle,
@@ -150,6 +152,7 @@ export const ReelsView: React.FC = () => {
 
   // Pending Editor / Creation payload
   const [pendingReelData, setPendingReelData] = useState<any>(null);
+  const [selectedVideoUrl, setSelectedVideoUrl] = useState<string>('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4');
 
   // Video Refs & Buffering watchdog
   const containerRef = useRef<HTMLDivElement>(null);
@@ -209,6 +212,23 @@ export const ReelsView: React.FC = () => {
   }, [allReels, activeMainTab, reelSearchQuery]);
 
   const currentReel = filteredReels[activeReelIndex] || filteredReels[0] || allReels[0];
+
+  // Central Playback & Audio-Focus Orchestrator Integration
+  useEffect(() => {
+    mediaOrchestrator.requestFocus("reels", currentReel?.id);
+    const unsubscribe = mediaOrchestrator.subscribe((activeDomain) => {
+      if (activeDomain !== "reels") {
+        setIsPlaying(false);
+        videoRefs.current.forEach(v => {
+          if (v) v.pause();
+        });
+      }
+    });
+    return () => {
+      unsubscribe();
+      mediaOrchestrator.releaseFocus("reels");
+    };
+  }, []);
 
   // Auto-manage play / pause / mute
   useEffect(() => {
@@ -619,17 +639,32 @@ export const ReelsView: React.FC = () => {
                 ref={el => {
                   videoRefs.current[idx] = el;
                 }}
-                src={reel.videoUrl}
-                poster={reel.poster}
+                src={reel.videoUrl && reel.videoUrl.startsWith('http') ? reel.videoUrl : 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'}
+                poster={reel.poster || reel.thumbnailUrl || 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=800'}
                 loop
                 playsInline
                 preload="auto"
                 autoPlay={idx === activeReelIndex}
                 muted={isMuted}
-                onWaiting={() => handleVideoWaiting(idx)}
+                onError={(e) => {
+                  console.warn('Video load error, switching to reliable stream:', e);
+                  setIsVideoBuffering(false);
+                  if (videoRefs.current[idx]) {
+                    videoRefs.current[idx]!.src = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
+                    videoRefs.current[idx]!.play().catch(() => {});
+                  }
+                }}
+                onWaiting={() => {
+                  // Only show buffering if it takes more than 400ms
+                  clearBufferWatchdog();
+                  bufferWatchdogRef.current = setTimeout(() => {
+                    if (idx === activeReelIndex) setIsVideoBuffering(true);
+                  }, 400);
+                }}
                 onPlaying={() => handleVideoReady(idx)}
                 onCanPlay={() => handleVideoReady(idx)}
                 onLoadedData={() => handleVideoReady(idx)}
+                onLoadedMetadata={() => handleVideoReady(idx)}
                 onTimeUpdate={idx === activeReelIndex ? handleTimeUpdate : undefined}
                 className="w-full h-full object-cover bg-black"
               />
@@ -839,14 +874,12 @@ export const ReelsView: React.FC = () => {
 
                 <div
                   onClick={handleOpenCreator}
-                  className="flex items-center gap-1 cursor-pointer group"
+                  className="flex items-center gap-1.5 cursor-pointer group"
                 >
-                  <span className="w-3.5 h-3.5 rounded-full bg-blue-500 text-white text-[8px] font-black flex items-center justify-center">
-                    ✓
-                  </span>
                   <span className="font-black text-sm text-white group-hover:underline">
-                    FilmMax Studio
+                    {reel.creator.name || 'FilmMax Studio'}
                   </span>
+                  <VerifiedBadge className="w-4 h-4 shrink-0" />
                 </div>
               </div>
 
@@ -982,6 +1015,7 @@ export const ReelsView: React.FC = () => {
       {isCreatorProfileOpen && (
         <ReelsCreatorProfile
           isOpen={isCreatorProfileOpen}
+          userId={currentReel?.userId ? String(currentReel.userId) : undefined}
           onClose={() => setIsCreatorProfileOpen(false)}
           onOpenEditProfile={() => {
             setIsCreatorProfileOpen(false);
@@ -1014,14 +1048,24 @@ export const ReelsView: React.FC = () => {
         <ReelsCreateSheet
           isOpen={isCreateSheetOpen}
           onClose={() => setIsCreateSheetOpen(false)}
-          onSelectCreateReel={() => setIsVideoEditorOpen(true)}
-          onSelectAddStory={() => setIsCameraCaptureOpen(true)}
-          onSelectLiveStream={() => setIsLiveStreamOpen(true)}
+          onSelectCreateReel={() => {
+            setIsCreateSheetOpen(false);
+            setIsCameraCaptureOpen(true);
+          }}
+          onSelectAddStory={() => {
+            setIsCreateSheetOpen(false);
+            setIsCameraCaptureOpen(true);
+          }}
+          onSelectLiveStream={() => {
+            setIsCreateSheetOpen(false);
+            setIsLiveStreamOpen(true);
+          }}
           onSelectUploadVideo={() => {
-            showToast('اختر فيديو من الاستوديو 📁');
+            setIsCreateSheetOpen(false);
             setIsVideoEditorOpen(true);
           }}
           onSelectDrafts={() => {
+            setIsCreateSheetOpen(false);
             showToast('لا توجد مسودات محفوظة حالياً 📝');
           }}
         />
@@ -1032,6 +1076,7 @@ export const ReelsView: React.FC = () => {
         <ReelsVideoEditor
           isOpen={isVideoEditorOpen}
           onClose={() => setIsVideoEditorOpen(false)}
+          videoUrl={selectedVideoUrl}
           onNext={data => {
             setPendingReelData(data);
             setIsVideoEditorOpen(false);
@@ -1047,17 +1092,20 @@ export const ReelsView: React.FC = () => {
           isOpen={isPublishPrivacyOpen}
           onClose={() => setIsPublishPrivacyOpen(false)}
           onPublish={settings => {
+            const newId = `reel-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
             addNewReel({
-              title: pendingReelData?.captionOverlay || 'مقطع سينمائي جديد 🔥 #FilmMax',
+              id: newId,
+              createdAt: Date.now(),
+              title: pendingReelData?.captionOverlay || settings.caption || 'مقطع سينمائي جديد 🔥 #FilmMax',
               description: 'أفضل اللقطات والمشاهد بجودة 4K',
               category: 'مشاهد أسطورية',
-              videoUrl: pendingReelData?.videoUrl || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-              poster: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=400',
+              videoUrl: pendingReelData?.videoUrl || selectedVideoUrl || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+              poster: pendingReelData?.coverPoster || 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=400',
               audioTrack: {
                 title: pendingReelData?.audioTrack || 'الصوت الأصلي',
                 artist: userProfile.name
               },
-              tags: ['FilmMax', 'Reels']
+              tags: settings.hashtags || ['FilmMax', 'Reels']
             });
             setIsPublishPrivacyOpen(false);
             setActiveMainTab('forYou');
@@ -1074,6 +1122,7 @@ export const ReelsView: React.FC = () => {
           onClose={() => setIsCameraCaptureOpen(false)}
           onCaptured={media => {
             setIsCameraCaptureOpen(false);
+            if (media.url) setSelectedVideoUrl(media.url);
             if (media.type === 'reel') {
               setIsVideoEditorOpen(true);
             } else {

@@ -13,7 +13,9 @@ import {
   Sun,
   Moon,
   Sparkles,
-  Check
+  Check,
+  Layers,
+  Server
 } from 'lucide-react';
 import { SUPPORTED_LANGUAGES, SupportedLanguage } from '../i18n/translations';
 import { AppLogo } from './AppLogo';
@@ -27,6 +29,8 @@ export const Header: React.FC = () => {
     setIsPremiumModalOpen,
     setIsEvolutionModalOpen,
     setIsAccountSwitcherOpen,
+    setIsIngestionStudioOpen,
+    setIsNetflixArchOpen,
     userProfile,
     searchQuery,
     setSearchQuery,
@@ -191,6 +195,8 @@ export const Header: React.FC = () => {
           <span className="text-[10px] sm:text-xs font-black tracking-tight whitespace-nowrap">AI الذكي</span>
         </button>
 
+
+
         {/* FilmMax Premium VIP Crown Button (اشتراك VIP) */}
         <button
           onClick={() => setIsPremiumModalOpen(true)}
@@ -213,26 +219,6 @@ export const Header: React.FC = () => {
               {unreadNotificationsCount}
             </span>
           )}
-        </button>
-
-        {/* User Profile Avatar / Account Switcher */}
-        <button
-          onClick={() => setIsAccountSwitcherOpen(true)}
-          className="relative w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full border-2 border-[#e50914]/80 overflow-hidden hover:border-[#e50914] active:scale-95 transition-all shadow-md shrink-0 group"
-          title="تبديل الحساب والملف الشخصي"
-        >
-          {userProfile.avatar ? (
-            <img
-              src={userProfile.avatar}
-              alt={userProfile.name}
-              className="w-full h-full object-cover group-hover:scale-110 transition-transform"
-            />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-[#e50914] to-[#7a060b] text-white flex items-center justify-center font-bold text-xs sm:text-sm">
-              {userProfile.name.charAt(0)}
-            </div>
-          )}
-          <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-black" />
         </button>
       </div>
     </header>
