@@ -8,7 +8,7 @@ import * as Sentry from '@sentry/browser';
 /**
  * PII Scrubber Utility - Strips sensitive credentials, tokens, cards, and personal info
  */
-function scrubSensitiveData(text: string): string {
+export function scrubSensitiveData(text: string): string {
   if (!text || typeof text !== 'string') return text;
   return text
     // Strip emails
@@ -27,38 +27,47 @@ class FilmMaxTelemetry {
   private localErrorLog: Array<{ message: string; timestamp: number; level: string }> = [];
 
   public init() {
-    if (this.isInitialized || typeof window === 'undefined') return;
+    if (this.isInitialized) return;
     this.isInitialized = true;
 
-    // Check for optional Sentry DSN in environment or runtime configuration
-    const dsn = (import.meta as any).env?.VITE_SENTRY_DSN || (window as any).__FILMMAX_SENTRY_DSN__;
+    const isBrowser = typeof window !== 'undefined';
 
-    if (dsn && typeof dsn === 'string' && dsn.startsWith('http')) {
+    // Safely extract Sentry DSN across Node process and Vite browser context
+    let dsn: string | undefined = undefined;
+    try {
+      if (typeof process !== 'undefined' && process.env) {
+        dsn = process.env.VITE_SENTRY_DSN;
+      }
+      if (!dsn && typeof import.meta !== 'undefined' && (import.meta as any).env) {
+        dsn = (import.meta as any).env.VITE_SENTRY_DSN;
+      }
+      if (!dsn && isBrowser) {
+        dsn = (window as any).__FILMMAX_SENTRY_DSN__;
+      }
+    } catch {}
+
+    if (dsn && typeof dsn === 'string' && dsn.startsWith('http') && isBrowser) {
       try {
         Sentry.init({
           dsn,
-          environment: (import.meta as any).env?.MODE || 'production',
-          tracesSampleRate: 0.2, // 20% performance trace sampling
+          environment: typeof process !== 'undefined' ? process.env.NODE_ENV : 'production',
+          tracesSampleRate: 0.2, // 20% trace sampling
           beforeSend(event) {
-            // Apply PII scrubbing to exceptions
             if (event.exception?.values) {
               event.exception.values.forEach(val => {
                 if (val.value) val.value = scrubSensitiveData(val.value);
               });
             }
-            // Scrub breadcrumbs
             if (event.breadcrumbs) {
               event.breadcrumbs.forEach(bc => {
                 if (bc.message) bc.message = scrubSensitiveData(bc.message);
               });
             }
-            // Scrub request URLs and headers
             if (event.request?.headers) {
               delete event.request.headers['Authorization'];
               delete event.request.headers['authorization'];
               delete event.request.headers['cookie'];
             }
-            // Strip user IP & email
             if (event.user) {
               delete event.user.ip_address;
               delete event.user.email;
@@ -68,25 +77,26 @@ class FilmMaxTelemetry {
         });
         this.isSentryActive = true;
         console.info('[FilmMax Telemetry] Sentry error monitoring initialized with PII scrubbing active.');
-      } catch (err) {
-        console.warn('[FilmMax Telemetry] Sentry initialization skipped gracefully:', err);
+      } catch (err: any) {
+        console.warn('[FilmMax Telemetry] Sentry initialization skipped gracefully:', err?.message || err);
         this.isSentryActive = false;
       }
     } else {
-      // Graceful offline telemetry: record structured local events without breaking app
-      console.info('[FilmMax Telemetry] Running in graceful local observability mode (no external DSN set).');
+      console.info('[FilmMax Telemetry] Running in graceful local observability mode (Node/local fallback active).');
     }
 
-    // Capture unhandled promise rejections gracefully
-    window.addEventListener('unhandledrejection', (event) => {
-      this.captureException(event.reason || new Error('Unhandled Promise Rejection'));
-    });
+    if (isBrowser) {
+      try {
+        window.addEventListener('unhandledrejection', (event) => {
+          this.captureException(event.reason || new Error('Unhandled Promise Rejection'));
+        });
+      } catch {}
+    }
   }
 
   public captureException(error: Error | any, context?: Record<string, any>) {
     const errorMsg = scrubSensitiveData(error?.message || String(error));
     
-    // Store in local ring buffer for in-app diagnostics
     this.localErrorLog.unshift({
       message: errorMsg,
       timestamp: Date.now(),
@@ -101,7 +111,7 @@ class FilmMaxTelemetry {
     }
   }
 
-  public captureMessage(message: string, level: Sentry.SeverityLevel = 'info') {
+  public captureMessage(message: string, level: 'info' | 'warning' | 'error' | 'fatal' | 'debug' = 'info') {
     const cleanMsg = scrubSensitiveData(message);
     this.localErrorLog.unshift({
       message: cleanMsg,
@@ -112,7 +122,7 @@ class FilmMaxTelemetry {
 
     if (this.isSentryActive) {
       try {
-        Sentry.captureMessage(cleanMsg, level);
+        Sentry.captureMessage(cleanMsg, level as any);
       } catch {}
     }
   }
@@ -140,3 +150,4 @@ class FilmMaxTelemetry {
 }
 
 export const telemetry = new FilmMaxTelemetry();
+

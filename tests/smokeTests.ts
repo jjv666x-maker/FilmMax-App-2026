@@ -15,6 +15,7 @@
  */
 
 import http from 'http';
+import { spawn, ChildProcess } from 'child_process';
 
 function runGetRequest(url: string): Promise<{ statusCode: number; body: any }> {
   return new Promise((resolve, reject) => {
@@ -62,7 +63,40 @@ function runPostRequest(url: string, payload: any): Promise<{ statusCode: number
   });
 }
 
+let spawnedServerProcess: ChildProcess | null = null;
+
+async function ensureServerRunning(): Promise<void> {
+  try {
+    const probe = await runGetRequest('http://localhost:3000/api/health');
+    if (probe.statusCode === 200) {
+      return;
+    }
+  } catch {
+    // Server not yet running on port 3000
+  }
+
+  console.log('  [Smoke Test Init] Server not detected on port 3000. Launching FilmMax server...');
+  spawnedServerProcess = spawn('npx', ['tsx', 'server.ts'], {
+    stdio: 'ignore',
+    env: { ...process.env, PORT: '3000' }
+  });
+
+  const maxAttempts = 30;
+  for (let i = 0; i < maxAttempts; i++) {
+    await new Promise(r => setTimeout(r, 500));
+    try {
+      const probe = await runGetRequest('http://localhost:3000/api/health');
+      if (probe.statusCode === 200) {
+        console.log('  [Smoke Test Init] FilmMax server successfully connected on port 3000.\n');
+        return;
+      }
+    } catch {}
+  }
+}
+
 async function runAllTests() {
+  await ensureServerRunning();
+
   console.log('\n======================================================');
   console.log('   FilmMax - Automated Reliability & Smoke Test Suite  ');
   console.log('======================================================\n');
@@ -170,6 +204,12 @@ async function runAllTests() {
   console.log('\n======================================================');
   console.log(`  Tests Result: ${passed} PASSED, ${failed} FAILED`);
   console.log('======================================================\n');
+
+  if (spawnedServerProcess) {
+    try {
+      spawnedServerProcess.kill('SIGTERM');
+    } catch {}
+  }
 
   if (failed > 0) {
     process.exit(1);

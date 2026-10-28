@@ -5,6 +5,8 @@
 
 import { telemetry } from './sentryClient';
 
+const getNow = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+
 export interface VideoQoSMetrics {
   movieId: string;
   movieTitle: string;
@@ -40,12 +42,13 @@ class VideoQoSTracker {
   } | null = null;
 
   public startSession(movieId: string, movieTitle: string, sourceType: 'hls' | 'mp4' | 'youtube') {
+    const now = getNow();
     this.activeSession = {
       movieId,
       movieTitle,
       sourceType,
-      loadStartTime: performance.now(),
-      playRequestTime: performance.now(),
+      loadStartTime: now,
+      playRequestTime: now,
       firstFrameRenderedTime: null,
       stallStartTime: null,
       stallCount: 0,
@@ -62,7 +65,7 @@ class VideoQoSTracker {
 
   public onFirstFrameRendered() {
     if (!this.activeSession || this.activeSession.firstFrameRenderedTime !== null) return;
-    const now = performance.now();
+    const now = getNow();
     this.activeSession.firstFrameRenderedTime = now;
     const ttff = Math.round(now - (this.activeSession.playRequestTime || this.activeSession.loadStartTime));
 
@@ -71,14 +74,14 @@ class VideoQoSTracker {
 
   public onBufferingStart() {
     if (!this.activeSession) return;
-    this.activeSession.stallStartTime = performance.now();
+    this.activeSession.stallStartTime = getNow();
     this.activeSession.stallCount += 1;
     telemetry.addBreadcrumb('video_qos', `Buffering stall #${this.activeSession.stallCount} started`);
   }
 
   public onBufferingEnd() {
     if (!this.activeSession || this.activeSession.stallStartTime === null) return;
-    const stallDuration = performance.now() - this.activeSession.stallStartTime;
+    const stallDuration = getNow() - this.activeSession.stallStartTime;
     this.activeSession.totalStallDurationMs += stallDuration;
     this.activeSession.stallStartTime = null;
   }
