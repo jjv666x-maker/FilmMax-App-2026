@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import * as Sentry from '@sentry/browser';
-
 /**
  * PII Scrubber Utility - Strips sensitive credentials, tokens, cards, and personal info
  */
@@ -21,18 +19,19 @@ export function scrubSensitiveData(text: string): string {
     .replace(/(password["']?\s*[:=]\s*["']?)[^"',\s}]+/gi, '$1[REDACTED_PWD]');
 }
 
+let SentrySDK: any = null;
+
 class FilmMaxTelemetry {
   private isInitialized = false;
   private isSentryActive = false;
   private localErrorLog: Array<{ message: string; timestamp: number; level: string }> = [];
 
-  public init() {
+  public async init() {
     if (this.isInitialized) return;
     this.isInitialized = true;
 
     const isBrowser = typeof window !== 'undefined';
 
-    // Safely extract Sentry DSN across Node process and Vite browser context
     let dsn: string | undefined = undefined;
     try {
       if (typeof process !== 'undefined' && process.env) {
@@ -48,18 +47,19 @@ class FilmMaxTelemetry {
 
     if (dsn && typeof dsn === 'string' && dsn.startsWith('http') && isBrowser) {
       try {
-        Sentry.init({
+        SentrySDK = await import('@sentry/browser');
+        SentrySDK.init({
           dsn,
           environment: typeof process !== 'undefined' ? process.env.NODE_ENV : 'production',
-          tracesSampleRate: 0.2, // 20% trace sampling
-          beforeSend(event) {
+          tracesSampleRate: 0.2,
+          beforeSend(event: any) {
             if (event.exception?.values) {
-              event.exception.values.forEach(val => {
+              event.exception.values.forEach((val: any) => {
                 if (val.value) val.value = scrubSensitiveData(val.value);
               });
             }
             if (event.breadcrumbs) {
-              event.breadcrumbs.forEach(bc => {
+              event.breadcrumbs.forEach((bc: any) => {
                 if (bc.message) bc.message = scrubSensitiveData(bc.message);
               });
             }
@@ -104,9 +104,9 @@ class FilmMaxTelemetry {
     });
     if (this.localErrorLog.length > 50) this.localErrorLog.pop();
 
-    if (this.isSentryActive) {
+    if (this.isSentryActive && SentrySDK) {
       try {
-        Sentry.captureException(error, { extra: context });
+        SentrySDK.captureException(error, { extra: context });
       } catch {}
     }
   }
@@ -120,17 +120,17 @@ class FilmMaxTelemetry {
     });
     if (this.localErrorLog.length > 50) this.localErrorLog.pop();
 
-    if (this.isSentryActive) {
+    if (this.isSentryActive && SentrySDK) {
       try {
-        Sentry.captureMessage(cleanMsg, level as any);
+        SentrySDK.captureMessage(cleanMsg, level);
       } catch {}
     }
   }
 
   public addBreadcrumb(category: string, message: string, data?: Record<string, any>) {
-    if (this.isSentryActive) {
+    if (this.isSentryActive && SentrySDK) {
       try {
-        Sentry.addBreadcrumb({
+        SentrySDK.addBreadcrumb({
           category,
           message: scrubSensitiveData(message),
           data,

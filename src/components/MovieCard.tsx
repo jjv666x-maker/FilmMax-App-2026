@@ -24,6 +24,10 @@ export const MovieCard: React.FC<MovieCardProps> = ({ movie, layout = 'standard'
             alt={movie.title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             loading="lazy"
+            onError={(e) => {
+              const target = e.currentTarget as HTMLImageElement;
+              target.src = 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=800&auto=format&fit=crop&q=80';
+            }}
           />
           <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
             <Play className="w-6 h-6 text-white fill-white" />
@@ -75,6 +79,10 @@ export const MovieCard: React.FC<MovieCardProps> = ({ movie, layout = 'standard'
           alt={movie.title}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           loading="lazy"
+          onError={(e) => {
+            const target = e.currentTarget as HTMLImageElement;
+            target.src = 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=800&auto=format&fit=crop&q=80';
+          }}
         />
 
         {/* Gradient Overlay */}

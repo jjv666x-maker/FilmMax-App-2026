@@ -17,6 +17,7 @@
     "@libsql/client": "^0.18.0",
     "@sentry/browser": "^11.8.0",
     "@sentry/core": "^11.9.0",
+    "@sentry/replay": "^11.9.0",
     "@tailwindcss/vite": "^4.1.14",
     "@types/d3": "^7.4.3",
     "@vitejs/plugin-react": "^5.0.4",

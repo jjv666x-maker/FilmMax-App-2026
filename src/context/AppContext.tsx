@@ -180,16 +180,35 @@ const STORAGE_KEYS = {
   PLAN: 'filmmax_react_plan_v5'
 };
 
+const safeRead = <T,>(key: string, fallback: T): T => {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    return parsed ?? fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const safeWrite = (key: string, value: unknown) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // ignore storage errors
+  }
+};
+
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [activeScreen, setActiveScreen] = useState<ScreenId>('home');
   const [movies, setMovies] = useState<Movie[]>(() => {
-    try {
-      const saved = localStorage.getItem('filmmax_movies_cache_v6');
-      if (saved) {
-        const parsed = JSON.parse(saved);
+    const saved = safeRead<any>('filmmax_movies_cache_v6', null);
+    if (saved) {
+      try {
+        const parsed = typeof saved === 'string' ? JSON.parse(saved) : saved;
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch {}
+      } catch {}
+    }
     return INITIAL_MOVIES;
   });
   const [currentPage, setCurrentPage] = useState(1);
@@ -239,12 +258,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   });
 
   const [continueWatching, setContinueWatching] = useState<ContinueWatching[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.CONTINUE_WATCHING);
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
+    return safeRead<ContinueWatching[]>('filmmax_continue_watching_v5', []);
   });
 
   const [stories, setStories] = useState<UserStory[]>(() => {
@@ -958,8 +972,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
 
   const addToContinueWatching = useCallback((movie: Movie, currentTime: number, duration: number) => {
-    if (currentTime < 5) return;
-    
+    if (!movie || currentTime < 5) return;
+
     setContinueWatching(prev => {
       const filtered = prev.filter(item => item.videoId !== movie.id);
       const newItem: ContinueWatching = {
@@ -974,11 +988,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         type: movie.type === 'فيلم' ? 'movie' : 'tv'
       };
       const updated = [newItem, ...filtered].slice(0, 15);
-      localStorage.setItem(STORAGE_KEYS.CONTINUE_WATCHING, JSON.stringify(updated));
+      safeWrite(STORAGE_KEYS.CONTINUE_WATCHING, updated);
       return updated;
     });
 
-    // Netflix Cross-Device Sync Protocol
     const uid = userProfile?.id || 'current_user';
     syncPlaybackWithServer({
       userId: uid,
@@ -1218,23 +1231,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Navigation
   const navigateTo = useCallback((screen: ScreenId, movie?: Movie, group?: MovieGroup) => {
-    if (movie) {
+    if (movie && movie.id) {
       setActiveMovie(movie);
-      resolveTrailerKey(movie).then(() => {
-        setMovies(prev => prev.map(m => (m.id === movie.id ? { ...m, youtubeKey: movie.youtubeKey } : m)));
-      });
+
+      resolveTrailerKey(movie)
+        .then(() => {
+          setMovies(prev => prev.map(m => (m.id === movie.id ? { ...m, youtubeKey: movie.youtubeKey } : m)));
+        })
+        .catch(() => {});
     }
+
     if (group) {
       setActiveGroup(group);
     }
 
-    // Netflix Centralized Audio & Playback Session Orchestration
-    if (screen === "player") {
-      mediaOrchestrator.requestFocus("cinema", movie?.id);
-    } else if (screen === "reels") {
-      mediaOrchestrator.requestFocus("reels");
-    } else if (screen === "live") {
-      mediaOrchestrator.requestFocus("live");
+    if (screen === 'player' && movie) {
+      mediaOrchestrator.requestFocus('cinema', movie.id);
+    } else if (screen === 'reels') {
+      mediaOrchestrator.requestFocus('reels');
+    } else if (screen === 'live') {
+      mediaOrchestrator.requestFocus('live');
     } else {
       mediaOrchestrator.releaseFocus(mediaOrchestrator.getActiveDomain());
     }

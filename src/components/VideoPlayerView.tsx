@@ -72,6 +72,16 @@ export const VideoPlayerView: React.FC = () => {
 
   const currentMovie = activeMovie || movies[0];
 
+  if (!currentMovie) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center text-white">
+        <div className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 text-center">
+          لا يوجد محتوى متاح الآن، يرجى المحاولة لاحقًا.
+        </div>
+      </div>
+    );
+  }
+
   const [isPlaying, setIsPlaying] = useState<boolean>(true);
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [volume, setVolume] = useState<number>(1);
@@ -102,19 +112,19 @@ export const VideoPlayerView: React.FC = () => {
   }, [currentMovie?.id]);
 
   const handleStreamError = useCallback(() => {
+    if (!currentMovie || !videoRef.current) return;
+
     if (!isCdnFailoverActive) {
       setIsCdnFailoverActive(true);
       setActiveCdnEdge("FilmMax-Edge-DXB-03 (Dubai Backup ⚡)");
       setCdnPingMs(19);
       showToast("تم التحويل التلقائي والشفاف لخادم البث الاحتياطي ⚡ (Failover Route Active)");
-      if (videoRef.current) {
-        const resumePos = videoRef.current.currentTime || 0;
-        videoRef.current.load();
-        videoRef.current.currentTime = resumePos;
-        videoRef.current.play().catch(() => {});
-      }
+      const resumePos = videoRef.current.currentTime || 0;
+      videoRef.current.load();
+      videoRef.current.currentTime = resumePos;
+      videoRef.current.play().catch(() => {});
     }
-  }, [isCdnFailoverActive, showToast]);
+  }, [isCdnFailoverActive, showToast, currentMovie]);
 
   // 1. Netflix Touch Lock Feature
   const [isScreenLocked, setIsScreenLocked] = useState<boolean>(false);
@@ -169,7 +179,7 @@ export const VideoPlayerView: React.FC = () => {
 
   // Find next movie for Auto-Next
   const nextMovieIndex = movies.findIndex(m => m.id === currentMovie.id) + 1;
-  const nextMovie = movies[nextMovieIndex] || movies[0];
+  const nextMovie = movies[nextMovieIndex] || movies[0] || null;
 
   // Dynamic Subtitles Generation for active movie
   const subtitleCues = useMemo(() => {
@@ -255,9 +265,11 @@ export const VideoPlayerView: React.FC = () => {
 
   // Real Adaptive Bitrate HLS Stream Playback & Video QoS Telemetry
   useEffect(() => {
-    const isHls = typeof currentMovie?.videoUrl === 'string' && currentMovie.videoUrl.includes('.m3u8');
-    const sourceType = activeYoutubeKey ? 'youtube' : isHls ? 'hls' : 'mp4';
-    videoQoS.startSession(String(currentMovie?.id || 'demo'), currentMovie?.title || 'FilmMax Stream', sourceType);
+    if (!currentMovie) return;
+
+    const isHls = typeof currentMovie.videoUrl === 'string' && currentMovie.videoUrl.includes('.m3u8');
+    const sourceType = currentMovie.youtubeKey ? 'youtube' : isHls ? 'hls' : 'mp4';
+    videoQoS.startSession(String(currentMovie.id || 'demo'), currentMovie.title || 'FilmMax Stream', sourceType);
 
     // Periodic QoS telemetry snapshot updater
     const qosTicker = setInterval(() => {
@@ -305,7 +317,7 @@ export const VideoPlayerView: React.FC = () => {
         // Native HLS for Safari
         videoRef.current.src = currentMovie.videoUrl!;
       }
-    } else if (videoRef.current && currentMovie?.videoUrl && !isHls) {
+    } else if (videoRef.current && currentMovie.videoUrl && !isHls) {
       // Standard MP4 stream
       videoRef.current.src = currentMovie.videoUrl;
     }
@@ -318,7 +330,7 @@ export const VideoPlayerView: React.FC = () => {
       }
       videoQoS.endSession();
     };
-  }, [currentMovie?.id, currentMovie?.videoUrl, activeYoutubeKey, handleStreamError]);
+  }, [currentMovie?.id, currentMovie?.videoUrl, currentMovie?.youtubeKey, handleStreamError]);
 
   // Handle controls auto-hide
   const handleUserActivity = () => {
@@ -637,7 +649,7 @@ export const VideoPlayerView: React.FC = () => {
       timer = setInterval(() => {
         setAutoNextCountdown(prev => prev - 1);
       }, 1000);
-    } else if (showAutoNext && autoNextCountdown === 0) {
+    } else if (showAutoNext && nextMovie && autoNextCountdown === 0) {
       setShowAutoNext(false);
       showToast(`جاري تشغيل العمل التالي: ${nextMovie.title}... ⏭️`);
       navigateTo('player', nextMovie);

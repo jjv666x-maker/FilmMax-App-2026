@@ -1,0 +1,3089 @@
+بالتأكيد — هذا هو آخر شكل من الأداة: نسخة كاملة من ملفي الإصلاح الأساسي، جاهزة للنسخ واللصق مباشرة داخل المشروع، مع الحفاظ على تصميم التطبيق كما هو، فقط لإزالة التعطل والارتباك عند غياب البيانات أو الفيديو أو `localStorage`.
+
+ملف 1: `src/context/AppContext.tsx`
+
+```tsx
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+  ReactNode
+} from 'react';
+import {
+  ScreenId,
+  Movie,
+  ReelItem,
+  LiveChannel,
+  MovieGroup,
+  UserProfile,
+  UserAccount,
+  DownloadItem,
+  AppNotification,
+  SubtitleSettings,
+  AudioSettings,
+  ContinueWatching,
+  UserStory
+} from '../types';
+import { INITIAL_MOVIES, INITIAL_REELS, INITIAL_LIVE_CHANNELS, INITIAL_GROUPS } from '../data/mockMovies';
+import { fetchAllMovies, resolveTrailerKey } from '../services/tmdb';
+import {
+  SupportedLanguage,
+  SUPPORTED_LANGUAGES,
+  TRANSLATIONS,
+  LanguageInfo
+} from '../i18n/translations';
+import { secureStorage, sanitizeInput } from '../services/securityEngine';
+import { mediaOrchestrator } from '../services/mediaSessionOrchestrator';
+import { compressImage } from '../utils/imageCompressor';
+import {
+  buildUserTasteProfile,
+  enrichMoviesWithMatchScores,
+  getBecauseYouWatchedRecommendations,
+  syncPlaybackWithServer,
+  fetchServerPlaybackHistory,
+  TasteProfile,
+  BecauseYouWatchedResult
+} from '../services/recommendationEngine';
+
+interface AppContextType {
+  activeScreen: ScreenId;
+  navigateTo: (screen: ScreenId, movie?: Movie, group?: MovieGroup) => void;
+  movies: Movie[];
+  activeMovie: Movie | null;
+  setActiveMovie: (movie: Movie | null) => void;
+  activeGroup: MovieGroup | null;
+  setActiveGroup: (group: MovieGroup | null) => void;
+  favorites: (string | number)[];
+  toggleFavorite: (movieId: string | number) => void;
+  isFavorite: (movieId: string | number) => boolean;
+  likedMovies: (string | number)[];
+  toggleLikeMovie: (movieId: string | number) => void;
+  isMovieLiked: (movieId: string | number) => boolean;
+  watchHistory: { movie: Movie; watchedPct: number; lastTime: string }[];
+  addToHistory: (movie: Movie, pct?: number) => void;
+  clearWatchHistory: () => void;
+  downloads: DownloadItem[];
+  addDownload: (movie: Movie, quality?: string) => void;
+  removeDownload: (id: string) => void;
+  playDownloadedMovie: (downloadItem: DownloadItem) => void;
+  downloadReel: (reel: ReelItem) => void;
+  notifications: AppNotification[];
+  unreadNotificationsCount: number;
+  markNotificationAsRead: (id: string) => void;
+  clearAllNotifications: () => void;
+  userProfile: UserProfile;
+  updateUserProfile: (data: Partial<UserProfile>) => void;
+  currentUser: UserProfile;
+  setCurrentUser: React.Dispatch<React.SetStateAction<UserProfile>>;
+  userData: UserProfile;
+  updateUserData: (data: Partial<UserProfile>) => void;
+  reels: ReelItem[];
+  likeReel: (reelId: string | number, forceLiked?: boolean) => void;
+  saveReel: (reelId: string | number) => void;
+  followReelCreator: (reelIdOrCreatorName: string | number) => void;
+  addReelComment: (reelId: string | number, comment: string) => void;
+  likeReelComment: (reelId: string | number, commentId: string) => void;
+  addNewReel: (reelData: Partial<ReelItem>) => void;
+  deleteReel: (reelId: string | number) => void;
+  liveChannels: LiveChannel[];
+  toggleLiveReminder: (channelId: string) => void;
+  groups: MovieGroup[];
+  continueWatching: ContinueWatching[];
+  addToContinueWatching: (movie: Movie, currentTime: number, duration: number) => void;
+  removeFromContinueWatching: (id: string | number) => void;
+  recommendations: Movie[];
+  tasteProfile: TasteProfile;
+  becauseYouWatched: BecauseYouWatchedResult | null;
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  subtitleSettings: SubtitleSettings;
+  updateSubtitleSettings: (data: Partial<SubtitleSettings>) => void;
+  isSubtitlesEnabled: boolean;
+  setIsSubtitlesEnabled: (enabled: boolean) => void;
+  audioSettings: AudioSettings;
+  updateAudioSettings: (data: Partial<AudioSettings>) => void;
+  activeDubbing: string;
+  setActiveDubbing: (dub: string) => void;
+  language: SupportedLanguage;
+  setLanguage: (lang: SupportedLanguage) => void;
+  currentLanguageInfo: LanguageInfo;
+  t: (key: string, fallback?: string) => string;
+  theme: 'dark' | 'light' | 'cinema';
+  setTheme: (theme: 'dark' | 'light' | 'cinema') => void;
+  twoFactorEnabled: boolean;
+  twoFactorSecret: string;
+  twoFactorBackupCodes: string[];
+  toggleTwoFactor: (enable: boolean) => void;
+  verify2FACode: (code: string) => boolean;
+  isPremiumModalOpen: boolean;
+  setIsPremiumModalOpen: (open: boolean) => void;
+  isEvolutionModalOpen: boolean;
+  setIsEvolutionModalOpen: (open: boolean) => void;
+  isShareModalOpen: boolean;
+  setIsShareModalOpen: (open: boolean) => void;
+  shareTargetMovie: Movie | null;
+  setShareTargetMovie: (movie: Movie | null) => void;
+  isChatSupportOpen: boolean;
+  setIsChatSupportOpen: (open: boolean) => void;
+  isNotificationOpen: boolean;
+  setIsNotificationOpen: (open: boolean) => void;
+  selectedPlan: 'weekly' | 'monthly' | 'yearly';
+  setSelectedPlan: (plan: 'weekly' | 'monthly' | 'yearly') => void;
+  toastMessage: string | null;
+  showToast: (msg: string) => void;
+  refreshMovies: (force?: boolean) => Promise<void>;
+  isLoadingMovies: boolean;
+  loadMoreMovies: () => Promise<void>;
+  isLoadingMore: boolean;
+  startupStage: 'intro' | 'welcome' | 'auth' | 'main';
+  setStartupStage: (stage: 'intro' | 'welcome' | 'auth' | 'main') => void;
+  replayIntro: () => void;
+  openWelcomeSlides: () => void;
+  openAuthScreen: () => void;
+  userAccounts: UserAccount[];
+  activeAccountId: string;
+  switchAccount: (id: string) => void;
+  addNewAccount: (acc: Partial<UserAccount>) => void;
+  deleteAccount: (id: string) => void;
+  isAccountSwitcherOpen: boolean;
+  setIsAccountSwitcherOpen: (open: boolean) => void;
+  isTVRemoteOpen: boolean;
+  setIsTVRemoteOpen: (open: boolean) => void;
+  isIngestionStudioOpen: boolean;
+  setIsIngestionStudioOpen: (open: boolean) => void;
+  isNetflixArchOpen: boolean;
+  setIsNetflixArchOpen: (open: boolean) => void;
+  isMoreSidebarOpen: boolean;
+  setIsMoreSidebarOpen: (open: boolean) => void;
+  activeReelId: string | number | null;
+  setActiveReelId: (id: string | number | null) => void;
+  stories: UserStory[];
+  addStory: (story: { mediaUrl: string; mediaType: 'image' | 'video'; caption?: string }) => void;
+  deleteStory: (id: string) => void;
+}
+
+const AppContext = createContext<AppContextType | undefined>(undefined);
+
+const STORAGE_KEYS = {
+  FAVS: 'filmmax_react_favs_v5',
+  LIKED: 'filmmax_react_liked_v5',
+  HISTORY: 'filmmax_react_history_v5',
+  DOWNLOADS: 'filmmax_react_downloads_v5',
+  PROFILE: 'filmmax_react_profile_v5',
+  USER_REELS: 'filmmax_react_user_reels_v5',
+  REELS_STATE: 'filmmax_react_reels_v5',
+  CONTINUE_WATCHING: 'filmmax_react_continue_watching_v5',
+  SUBTITLES: 'filmmax_react_subs_v5',
+  AUDIO: 'filmmax_react_audio_v5',
+  LANGUAGE: 'filmmax_react_lang_v5',
+  THEME: 'filmmax_react_theme_v5',
+  TWO_FA: 'filmmax_react_2fa_v5',
+  PLAN: 'filmmax_react_plan_v5'
+};
+
+const safeRead = <T,>(key: string, fallback: T): T => {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    return parsed ?? fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const safeWrite = (key: string, value: unknown) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // ignore storage errors
+  }
+};
+
+export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [activeScreen, setActiveScreen] = useState<ScreenId>('home');
+  const [movies, setMovies] = useState<Movie[]>(() => {
+    const saved = safeRead<string | null>('filmmax_movies_cache_v6', null);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch {}
+    }
+    return INITIAL_MOVIES;
+  });
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isLoadingMovies, setIsLoadingMovies] = useState<boolean>(false);
+
+  const [reels, setReels] = useState<ReelItem[]>(() => {
+    let localUserReels: ReelItem[] = [];
+    try {
+      const savedUserReels = localStorage.getItem('filmmax_react_user_reels_v5');
+      if (savedUserReels) {
+        const parsed = JSON.parse(savedUserReels);
+        if (Array.isArray(parsed)) localUserReels = parsed;
+      }
+    } catch {}
+
+    try {
+      const saved = localStorage.getItem('filmmax_react_reels_v5');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const combined = [...localUserReels, ...parsed];
+          const seen = new Set();
+          return combined.filter(r => {
+            if (!r || !r.id || seen.has(r.id)) return false;
+            seen.add(r.id);
+            return true;
+          });
+        }
+      }
+    } catch {
+      return [...localUserReels, ...INITIAL_REELS];
+    }
+    return [...localUserReels, ...INITIAL_REELS];
+  });
+
+  const [activeMovie, setActiveMovie] = useState<Movie | null>(INITIAL_MOVIES[0] || null);
+  const [activeGroup, setActiveGroup] = useState<MovieGroup | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [activeReelId, setActiveReelId] = useState<string | number | null>(null);
+  const [startupStage, setStartupStage] = useState<'intro' | 'welcome' | 'auth' | 'main'>(() => {
+    try {
+      const session = localStorage.getItem('filmMax_session');
+      if (session) return 'main';
+    } catch {}
+    return 'intro';
+  });
+
+  const [continueWatching, setContinueWatching] = useState<ContinueWatching[]>(() => {
+    return safeRead<ContinueWatching[]>('filmmax_continue_watching_v5', []);
+  });
+
+  const [stories, setStories] = useState<UserStory[]>(() => {
+    try {
+      const saved = localStorage.getItem('filmmax_user_stories_v1');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [
+      {
+        id: 'story-init-1',
+        userId: 'usr-vip-001',
+        userName: 'محمد أحمد الحامد',
+        userAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop&q=80',
+        mediaUrl: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=1200&auto=format&fit=crop&q=80',
+        mediaType: 'image',
+        caption: 'أفضل تجربة سينمائية بتقنية 4K الليلة 🎬🍿',
+        createdAt: Date.now() - 3600000,
+        duration: 5
+      }
+    ];
+  });
+
+  // User Profile / UserContext State (TikTok-style User-Specific Storage)
+  const [userProfile, setUserProfile] = useState<UserProfile>(() => {
+    try {
+      const sessionEmail = localStorage.getItem('filmMax_session');
+      if (sessionEmail) {
+        const specificUser = localStorage.getItem('filmMax_user_' + sessionEmail.toLowerCase());
+        if (specificUser) {
+          const parsed = JSON.parse(specificUser);
+          if (parsed && parsed.name) return parsed;
+        }
+      }
+
+      const userDataSaved = localStorage.getItem('userData');
+      if (userDataSaved) {
+        const parsed = JSON.parse(userDataSaved);
+        if (parsed && parsed.email) {
+          const specificUser = localStorage.getItem('filmMax_user_' + parsed.email.toLowerCase());
+          if (specificUser) {
+            const p2 = JSON.parse(specificUser);
+            if (p2 && p2.name) return p2;
+          }
+          return parsed;
+        }
+      }
+
+      const secSaved = secureStorage.getItem<UserProfile | null>(STORAGE_KEYS.PROFILE, null);
+      if (secSaved && secSaved.name) return secSaved;
+
+      const directSaved = localStorage.getItem('userProfile');
+      if (directSaved) {
+        const parsed = JSON.parse(directSaved);
+        if (parsed && parsed.email) {
+          const specificUser = localStorage.getItem('filmMax_user_' + parsed.email.toLowerCase());
+          if (specificUser) {
+            const p2 = JSON.parse(specificUser);
+            if (p2 && p2.name) return p2;
+          }
+          return parsed;
+        }
+      }
+    } catch {}
+    return {
+      id: 'usr-vip-001',
+      name: 'محمد أحمد الحامد',
+      username: 'mohamed_cinema_vip',
+      email: 'mohamed@filmmax.vip',
+      phone: '+964 770 123 4567',
+      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop&q=80',
+      coverPhoto: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=1200&auto=format&fit=crop&q=80',
+      bio: 'عاشق للسينما العالمية والأفلام الوثائقية بأعلى دقة 4K HDR. متابع شغوف لكل جديد 🎬🍿',
+      favoriteGenre: 'أكشن وحركة 4K',
+      avatarFrame: 'diamond',
+      level: 14,
+      levelTitle: 'خبير السينما الأسطوري 🏆',
+      xp: 8450,
+      nextLevelXp: 10000,
+      watchTimeHours: 184,
+      moviesCompleted: 68,
+      seriesCompleted: 14,
+      streakDays: 12,
+      membershipBadge: 'VIP Diamond 4K 💎',
+      isPremium: true,
+      premiumExpiry: '31/12/2026',
+      evolutionPlan: 'monthly',
+      twoFactorEnabled: true,
+      language: 'ar',
+      theme: 'dark',
+      achievements: [
+        {
+          id: 'ach-1',
+          title: 'عاشق الـ 4K',
+          icon: '👑',
+          desc: 'شاهدت أكثر من 50 عملاً بدقة 4K HDR فائقة الوضوح',
+          unlockedAt: '12 يناير 2026',
+          isUnlocked: true
+        },
+        {
+          id: 'ach-2',
+          title: 'بطل المشاهدة الجماعية',
+          icon: '🍿',
+          desc: 'استضفت أكثر من 10 جلسات Watch Party مع الأصدقاء',
+          unlockedAt: '02 فبراير 2026',
+          isUnlocked: true
+        },
+        {
+          id: 'ach-3',
+          title: 'ناقد السينما الذهبي',
+          icon: '⭐',
+          desc: 'كتبت أكثر من 20 تقييماً وتعليقاً نال إعجاب المشاهدين',
+          unlockedAt: '18 فبراير 2026',
+          isUnlocked: true
+        },
+        {
+          id: 'ach-4',
+          title: 'ملك المسلسلات',
+          icon: '📺',
+          desc: 'أكملت مشاهدة 10 مواسم كاملة بدون انقطاع',
+          unlockedAt: 'أمس',
+          isUnlocked: true
+        },
+        {
+          id: 'ach-5',
+          title: 'أسطورة التحديات',
+          icon: '🏆',
+          desc: 'حققت المركز الأول في مسابقات السينما والـ Trivia',
+          isUnlocked: false
+        }
+      ]
+    };
+  });
+
+  useEffect(() => {
+    try {
+      if (userProfile && userProfile.email) {
+        const emailKey = userProfile.email.toLowerCase();
+        localStorage.setItem('filmMax_user_' + emailKey, JSON.stringify(userProfile));
+      }
+      localStorage.setItem('userData', JSON.stringify(userProfile));
+      localStorage.setItem('userProfile', JSON.stringify(userProfile));
+      localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(userProfile));
+      secureStorage.setItem(STORAGE_KEYS.PROFILE, userProfile);
+    } catch {}
+  }, [userProfile]);
+
+  const isLoadingMoviesRef = useRef<boolean>(false);
+  const isLoadingMoreRef = useRef<boolean>(false);
+  const currentPageRef = useRef<number>(1);
+  const hasLoadedInitialMoviesRef = useRef<boolean>(false);
+  const lastProcessedMoviesLengthRef = useRef<number>(0);
+
+  useEffect(() => {
+    currentPageRef.current = currentPage;
+  }, [currentPage]);
+
+  const refreshMovies = useCallback(async (force = false) => {
+    if (isLoadingMoviesRef.current && !force) return;
+    isLoadingMoviesRef.current = true;
+    setIsLoadingMovies(true);
+    try {
+      const { fetchMassiveLibrary } = await import('../services/tmdb');
+      const data = await fetchMassiveLibrary(5);
+      if (data && data.length > 0) {
+        setMovies(data);
+        setCurrentPage(5);
+        try {
+          localStorage.setItem('filmmax_movies_cache_v6', JSON.stringify(data));
+        } catch {}
+      }
+    } catch (e) {
+      console.warn('Refresh failed:', e);
+    } finally {
+      isLoadingMoviesRef.current = false;
+      setIsLoadingMovies(false);
+    }
+  }, []);
+
+  const loadMoreMovies = useCallback(async () => {
+    if (isLoadingMoreRef.current) return;
+    isLoadingMoreRef.current = true;
+    setIsLoadingMore(true);
+    try {
+      const currPage = currentPageRef.current;
+      const nextPage = currPage + 1;
+      const endPage = currPage + 3;
+
+      const fetchPromises = [];
+      const { fetchFromTMDB, formatTMDBItem } = await import('../services/tmdb');
+
+      for (let i = nextPage; i <= endPage; i++) {
+        fetchPromises.push(fetchFromTMDB('/movie/popular', { page: i.toString() }).catch(() => null));
+        fetchPromises.push(fetchFromTMDB('/tv/popular', { page: i.toString() }).catch(() => null));
+      }
+
+      const results = await Promise.all(fetchPromises);
+      const newItems: Movie[] = [];
+
+      results.forEach((res, index) => {
+        if (res?.results) {
+          const isTv = index % 2 !== 0;
+          newItems.push(...res.results.map((item: any) => formatTMDBItem(item, isTv)));
+        }
+      });
+
+      if (newItems.length > 0) {
+        setMovies(prev => {
+          const combined = [...prev, ...newItems];
+          const seen = new Set<string>();
+          const filtered = combined.filter(m => {
+            const key = `${m.id}-${m.type}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+          try {
+            localStorage.setItem('filmmax_movies_cache_v6', JSON.stringify(filtered));
+          } catch {}
+          return filtered;
+        });
+        setCurrentPage(endPage);
+      } else {
+        const bonusMovies: Movie[] = Array.from({ length: 24 }).map((_, i) => {
+          const randId = 90000 + currPage * 100 + i;
+          return {
+            id: randId,
+            title: `فيلم إضافي مميز رقم ${randId}`,
+            rating: Number((7.0 + Math.random() * 2.5).toFixed(1)),
+            poster: `https://image.tmdb.org/t/p/w780/qNBAXBIQlnOThrVvA6mA2B5ndV6.jpg`,
+            backdrop: `https://image.tmdb.org/t/p/w1280/suopoADq0k8YZr4dQXcU6pToj6s.jpg`,
+            type: i % 2 === 0 ? 'فيلم' : 'مسلسل',
+            year: '2025',
+            videoUrl: 'https://www.youtube-nocookie.com/embed/Way9Dexny3w',
+            youtubeKey: 'Way9Dexny3w',
+            overview: 'أحدث الإصدارات السينمائية المضافة حديثاً للمكتبة الضخمة مع جودة عرض خارقة وترجمة عربية.',
+            genres: ['أكشن', 'مغامرة', 'خيال علمي'],
+            duration: '2h 10m',
+            matchScore: 95,
+            isTrending: true,
+            ageRating: '16+',
+            quality: '4K HDR'
+          };
+        });
+        setMovies(prev => [...prev, ...bonusMovies]);
+        setCurrentPage(endPage);
+      }
+    } catch (e) {
+      console.warn('Load more fallback triggered:', e);
+      const bonusMovies: Movie[] = Array.from({ length: 12 }).map((_, i) => ({
+        id: 99000 + i,
+        title: `عمل سينمائي مميز ${i + 1}`,
+        rating: 8.8,
+        poster: 'https://image.tmdb.org/t/p/w780/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg',
+        backdrop: 'https://image.tmdb.org/t/p/w1280/8xK461q2qB4W0VbJqC1q3q9K4s.jpg',
+        type: 'فيلم',
+        year: '2026',
+        videoUrl: 'https://www.youtube-nocookie.com/embed/Way9Dexny3w',
+        youtubeKey: 'Way9Dexny3w',
+        overview: 'أحدث الأفلام المضافة للمكتبة العالمية.',
+        genres: ['أكشن', 'إثارة'],
+        duration: '2h 00m',
+        matchScore: 94,
+        isTrending: true,
+        ageRating: '16+',
+        quality: '4K HDR'
+      }));
+      setMovies(prev => [...prev, ...bonusMovies]);
+    } finally {
+      isLoadingMoreRef.current = false;
+      setIsLoadingMore(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    async function loadReels() {
+      let serverReels: ReelItem[] = [];
+      try {
+        const res = await fetch('/api/reels');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && Array.isArray(data.reels)) {
+            serverReels = data.reels.map((raw: any) => {
+              const r = raw.reel || raw;
+              const creatorName = raw.user?.name || raw.creatorName || (r.userId === userProfile.id ? userProfile.name : 'صانع محتوى');
+              const creatorAvatar = raw.user?.avatar || raw.creatorAvatar || (r.userId === userProfile.id ? userProfile.avatar : 'https://api.dicebear.com/7.x/avataaars/svg?seed=user');
+              const poster = r.thumbnailUrl || r.poster || 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=800';
+
+              let tags = ['سينما', 'ريلز'];
+              try {
+                if (Array.isArray(r.tags)) tags = r.tags;
+                else if (typeof r.tags === 'string' && r.tags.startsWith('[')) tags = JSON.parse(r.tags);
+              } catch {}
+
+              return {
+                id: r.id,
+                title: r.title || r.description?.slice(0, 35) || 'مقطع سينمائي مميز',
+                description: r.description || '',
+                category: r.category || 'مشاهد سينمائية',
+                tags,
+                videoUrl: r.videoUrl,
+                poster,
+                thumbnailUrl: poster,
+                viewsCount: r.viewsCount || 520,
+                likesCount: r.likesCount || 0,
+                commentsCount: r.commentsCount || 0,
+                sharesCount: r.sharesCount || 0,
+                savesCount: 0,
+                isLiked: false,
+                isSaved: false,
+                isFollowing: true,
+                isUserCreated: r.userId === userProfile.id,
+                userId: r.userId,
+                creator: {
+                  name: creatorName,
+                  username: r.userId === userProfile.id ? (userProfile.username || 'me') : 'creator',
+                  avatar: creatorAvatar,
+                  badge: r.userId === userProfile.id ? 'صانع محتوى' : undefined,
+                  bio: 'صانع محتوى سينمائي 🎬',
+                  followersCount: 150,
+                  isFollowing: true
+                },
+                audioTrack: {
+                  title: r.musicTitle || 'الصوت الأصلي',
+                  artist: creatorName
+                }
+              };
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('Backend reels fetch note:', err);
+      }
+
+      let movieReels: ReelItem[] = [];
+      if (movies.length > 0) {
+        movieReels = movies.slice(0, 50).map((m) => ({
+          id: `reel-tmdb-${m.id}`,
+          title: m.title,
+          description: m.overview,
+          category: 'تريلر',
+          tags: m.genres,
+          videoUrl: m.videoUrl,
+          youtubeKey: m.youtubeKey,
+          poster: m.backdrop || m.poster,
+          thumbnailUrl: m.backdrop || m.poster,
+          movieId: m.id,
+          movieTitle: m.title,
+          moviePoster: m.poster,
+          movieRating: m.rating,
+          movieType: m.type as any,
+          videoType: 'reel',
+          viewsCount: Math.floor(Math.random() * 1000000) + 50000,
+          creator: {
+            name: 'FilmMax Studio',
+            username: 'filmmax_official',
+            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=filmmax',
+            badge: 'Verified',
+            bio: 'المصدر الرسمي لتريلرات الأفلام الحصرية بجودة 4K 🎬',
+            followersCount: 1200000,
+            isFollowing: true
+          },
+          audioTrack: {
+            title: 'Original Soundtrack',
+            artist: m.title
+          },
+          likesCount: Math.floor(Math.random() * 50000) + 1000,
+          commentsCount: Math.floor(Math.random() * 5000) + 100,
+          sharesCount: Math.floor(Math.random() * 2000) + 50,
+          savesCount: Math.floor(Math.random() * 10000) + 500,
+          isLiked: false,
+          isSaved: false,
+          isFollowing: true
+        }));
+      }
+
+      setReels(prev => {
+        let savedUserReels: ReelItem[] = [];
+        try {
+          const raw = localStorage.getItem(STORAGE_KEYS.USER_REELS);
+          if (raw) savedUserReels = JSON.parse(raw);
+        } catch {}
+
+        const localUserReels = prev.filter(r => r.isUserCreated || r.userId === userProfile.id);
+        const allUser = [...savedUserReels, ...localUserReels];
+        const combined = [...allUser, ...serverReels, ...movieReels];
+        const seen = new Set();
+        return combined.filter(r => {
+          if (!r || !r.id || seen.has(r.id)) return false;
+          seen.add(r.id);
+          return true;
+        });
+      });
+    }
+    loadReels();
+  }, [movies.length, userProfile.id]);
+
+  useEffect(() => {
+    try {
+      if (reels.length > 0) {
+        localStorage.setItem(STORAGE_KEYS.REELS_STATE, JSON.stringify(reels.slice(0, 100)));
+      }
+    } catch {}
+  }, [reels]);
+
+  useEffect(() => {
+    if (!hasLoadedInitialMoviesRef.current) {
+      hasLoadedInitialMoviesRef.current = true;
+      refreshMovies();
+    }
+  }, [refreshMovies]);
+
+  const replayIntro = useCallback(() => {
+    setStartupStage('intro');
+  }, []);
+
+  const openWelcomeSlides = useCallback(() => {
+    setStartupStage('welcome');
+  }, []);
+
+  const openAuthScreen = useCallback(() => {
+    setStartupStage('auth');
+  }, []);
+
+  const [language, setLanguageState] = useState<SupportedLanguage>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.LANGUAGE) as SupportedLanguage;
+      if (saved && TRANSLATIONS[saved]) return saved;
+    } catch {}
+    return 'ar';
+  });
+
+  const [theme, setThemeState] = useState<'dark' | 'light' | 'cinema'>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.THEME) as 'dark' | 'light' | 'cinema';
+      if (saved && ['dark', 'light', 'cinema'].includes(saved)) return saved;
+    } catch {}
+    return 'dark';
+  });
+
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.TWO_FA);
+      if (saved) return JSON.parse(saved).enabled;
+    } catch {}
+    return true;
+  });
+  const [twoFactorSecret] = useState<string>('JBSWY3DPEHPK3PXP');
+  const [twoFactorBackupCodes] = useState<string[]>([
+    '4920-1849',
+    '7731-9021',
+    '3310-8291',
+    '5524-1190',
+    '8839-4412'
+  ]);
+
+  const [activeDubbing, setActiveDubbing] = useState<string>('دبلجة عربية فصحى');
+  const [isSubtitlesEnabled, setIsSubtitlesEnabled] = useState<boolean>(true);
+
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const showToast = useCallback((msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(prev => (prev === msg ? null : prev));
+    }, 3200);
+  }, []);
+
+  const setLanguage = useCallback((newLang: SupportedLanguage) => {
+    setLanguageState(newLang);
+    localStorage.setItem(STORAGE_KEYS.LANGUAGE, newLang);
+    const langObj = SUPPORTED_LANGUAGES.find(l => l.code === newLang) || SUPPORTED_LANGUAGES[0];
+    document.documentElement.dir = langObj.dir;
+    document.documentElement.lang = newLang;
+    showToast(`تم تغيير لغة التطبيق إلى ${langObj.nativeName}`);
+  }, [showToast]);
+
+  const setTheme = useCallback((newTheme: 'dark' | 'light' | 'cinema') => {
+    setThemeState(newTheme);
+    localStorage.setItem(STORAGE_KEYS.THEME, newTheme);
+    const themeName =
+      newTheme === 'light'
+        ? 'الوضع النهاري المضيء ☀️'
+        : newTheme === 'cinema'
+        ? 'نمط السينما الفاخر 🎬'
+        : 'الوضع الليلي الداكن 🌙';
+    showToast(`تم تطبيق ${themeName}`);
+  }, [showToast]);
+
+  useEffect(() => {
+    const langObj = SUPPORTED_LANGUAGES.find(l => l.code === language) || SUPPORTED_LANGUAGES[0];
+    document.documentElement.dir = langObj.dir;
+    document.documentElement.lang = language;
+  }, [language]);
+
+  useEffect(() => {
+    document.documentElement.classList.remove('theme-light', 'theme-dark', 'theme-cinema');
+    document.body.classList.remove('theme-light', 'theme-dark', 'theme-cinema');
+    document.documentElement.classList.add(`theme-${theme}`);
+    document.body.classList.add(`theme-${theme}`);
+  }, [theme]);
+
+  const t = useCallback(
+    (key: string, fallback?: string): string => {
+      const dict = TRANSLATIONS[language] || TRANSLATIONS.ar;
+      if (dict && dict[key]) return dict[key];
+      const enDict = TRANSLATIONS.en;
+      if (enDict && enDict[key]) return dict[key];
+      return fallback || key;
+    },
+    [language]
+  );
+
+  const currentLanguageInfo =
+    SUPPORTED_LANGUAGES.find(l => l.code === language) || SUPPORTED_LANGUAGES[0];
+
+  const [isPremiumModalOpen, setIsPremiumModalOpen] = useState(false);
+  const [isEvolutionModalOpen, setIsEvolutionModalOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [shareTargetMovie, setShareTargetMovie] = useState<Movie | null>(null);
+  const [isChatSupportOpen, setIsChatSupportOpen] = useState(false);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [isAccountSwitcherOpen, setIsAccountSwitcherOpen] = useState(false);
+  const [isTVRemoteOpen, setIsTVRemoteOpen] = useState(false);
+  const [isNetflixArchOpen, setIsNetflixArchOpen] = useState(false);
+  const [isIngestionStudioOpen, setIsIngestionStudioOpen] = useState(false);
+  const [isMoreSidebarOpen, setIsMoreSidebarOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<'weekly' | 'monthly' | 'yearly'>('monthly');
+
+  const [userAccounts, setUserAccounts] = useState<UserAccount[]>(() => {
+    try {
+      const saved = localStorage.getItem('filmmax_react_accounts_v1');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [
+      {
+        id: 'acc-1',
+        name: 'علي الحامد',
+        email: 'ali@filmmax.vip',
+        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+        badge: 'VIP Gold 👑',
+        isPremium: true,
+        premiumExpiry: '31/12/2026',
+        role: 'owner'
+      },
+      {
+        id: 'acc-2',
+        name: 'حساب العائلة والدراما',
+        email: 'family@filmmax.vip',
+        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+        badge: 'VIP Family ✨',
+        isPremium: true,
+        role: 'family'
+      },
+      {
+        id: 'acc-3',
+        name: 'عالم الأطفال Safe Kids',
+        email: 'kids@filmmax.vip',
+        avatar: 'https://images.unsplash.com/photo-1566492031773-4f4e44671857?w=150&auto=format&fit=crop&q=80',
+        badge: 'Kids Safe 🎈',
+        isPremium: true,
+        role: 'kids'
+      },
+      {
+        id: 'acc-4',
+        name: 'مريم علي',
+        email: 'maryam@filmmax.vip',
+        avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
+        badge: 'عضوية بلس 🌟',
+        isPremium: true,
+        role: 'owner'
+      }
+    ];
+  });
+
+  const [activeAccountId, setActiveAccountId] = useState<string>('acc-1');
+
+  useEffect(() => {
+    localStorage.setItem('filmmax_react_accounts_v1', JSON.stringify(userAccounts));
+  }, [userAccounts]);
+
+  const switchAccount = useCallback((id: string) => {
+    const acc = userAccounts.find(a => a.id === id);
+    if (acc) {
+      setActiveAccountId(id);
+      setUserProfile(prev => ({
+        ...prev,
+        id: acc.id,
+        name: acc.name,
+        email: acc.email,
+        phone: acc.phone || prev.phone,
+        avatar: acc.avatar,
+        isPremium: acc.isPremium,
+        premiumExpiry: acc.premiumExpiry || '31/12/2026'
+      }));
+      showToast(`تم تبديل الحساب إلى: ${acc.name} 👋`);
+      setIsAccountSwitcherOpen(false);
+    }
+  }, [userAccounts, showToast]);
+
+  const addNewAccount = useCallback((accData: Partial<UserAccount>) => {
+    const newAcc: UserAccount = {
+      id: `acc-${Date.now()}`,
+      name: accData.name || 'حساب جديد',
+      email: accData.email || 'user@filmmax.vip',
+      avatar: accData.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+      badge: accData.role === 'kids' ? 'Kids Safe 🎈' : 'VIP Member 👑',
+      isPremium: true,
+      role: accData.role || 'family'
+    };
+    setUserAccounts(prev => [...prev, newAcc]);
+    switchAccount(newAcc.id);
+    showToast(`تم إنشاء وتحديد الحساب الجديد: ${acc.name} 🎉`);
+  }, [switchAccount, showToast]);
+
+  const deleteAccount = useCallback((id: string) => {
+    if (userAccounts.length <= 1) {
+      showToast('لا يمكن حذف الحساب الوحيد المتبقي');
+      return;
+    }
+    setUserAccounts(prev => prev.filter(a => a.id !== id));
+    if (activeAccountId === id) {
+      const remaining = userAccounts.filter(a => a.id !== id);
+      if (remaining.length > 0) {
+        switchAccount(remaining[0].id);
+      }
+    }
+    showToast('تم حذف الحساب المحدد');
+  }, [userAccounts, activeAccountId, switchAccount, showToast]);
+
+  const [favorites, setFavorites] = useState<(string | number)[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.FAVS);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [101, 102, 106];
+  });
+
+  const [likedMovies, setLikedMovies] = useState<(string | number)[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.LIKED);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [101, 102, 103, 107];
+  });
+
+  const [watchHistory, setWatchHistory] = useState<{ movie: Movie; watchedPct: number; lastTime: string }[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.HISTORY);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [
+      {
+        movie: INITIAL_MOVIES[0],
+        watchedPct: 65,
+        lastTime: 'متبقي 45 دقيقة'
+      }
+    ];
+  });
+
+  const addToContinueWatching = useCallback((movie: Movie, currentTime: number, duration: number) => {
+    if (!movie || currentTime < 5) return;
+
+    setContinueWatching(prev => {
+      const filtered = prev.filter(item => item.videoId !== movie.id);
+      const newItem: ContinueWatching = {
+        id: `cw-${movie.id}`,
+        videoId: movie.id,
+        title: movie.title,
+        poster: movie.poster,
+        currentTime,
+        duration,
+        lastWatched: Date.now(),
+        progress: duration > 0 ? (currentTime / duration) * 100 : 0,
+        type: movie.type === 'فيلم' ? 'movie' : 'tv'
+      };
+      const updated = [newItem, ...filtered].slice(0, 15);
+      safeWrite(STORAGE_KEYS.CONTINUE_WATCHING, updated);
+      return updated;
+    });
+
+    const uid = userProfile?.id || 'current_user';
+    syncPlaybackWithServer({
+      userId: uid,
+      mediaId: movie.id,
+      mediaType: movie.type === 'فيلم' ? 'movie' : 'tv',
+      title: movie.title,
+      poster: movie.poster,
+      currentTime,
+      duration: duration || 0
+    }).catch(() => {});
+  }, [userProfile?.id]);
+
+  const removeFromContinueWatching = useCallback((id: string | number) => {
+    setContinueWatching(prev => {
+      const updated = prev.filter(item => item.id !== id && item.videoId !== id);
+      safeWrite(STORAGE_KEYS.CONTINUE_WATCHING, updated);
+      return updated;
+    });
+  }, []);
+
+  useEffect(() => {
+    const uid = userProfile?.id || 'current_user';
+    fetchServerPlaybackHistory(uid).then(serverItems => {
+      if (serverItems && serverItems.length > 0) {
+        setContinueWatching(prev => {
+          const map = new Map();
+          prev.forEach(item => map.set(String(item.videoId), item));
+          serverItems.forEach((si: any) => {
+            const vid = String(si.mediaId);
+            const existing = map.get(vid);
+            if (!existing || (Number(si.progress) > (existing.currentTime || 0))) {
+              map.set(vid, {
+                id: `cw-${si.mediaId}`,
+                videoId: si.mediaId,
+                title: si.title,
+                poster: si.poster,
+                currentTime: Number(si.progress || 0),
+                duration: Number(si.duration || 0),
+                lastWatched: si.watchedAt ? new Date(si.watchedAt).getTime() : Date.now(),
+                progress: si.duration && si.duration > 0 ? (Number(si.progress) / Number(si.duration)) * 100 : 0,
+                type: si.mediaType || 'movie'
+              });
+            }
+          });
+          const merged = Array.from(map.values()).sort((a, b) => b.lastWatched - a.lastWatched).slice(0, 15);
+          safeWrite(STORAGE_KEYS.CONTINUE_WATCHING, merged);
+          return merged;
+        });
+      }
+    }).catch(() => {});
+  }, [userProfile?.id]);
+
+  const tasteProfile = useMemo(() => {
+    return buildUserTasteProfile(continueWatching, favorites, movies, userProfile);
+  }, [continueWatching, favorites, movies, userProfile]);
+
+  const enrichedMovies = useMemo(() => {
+    return enrichMoviesWithMatchScores(movies, tasteProfile);
+  }, [movies, tasteProfile]);
+
+  const recommendations = useMemo(() => {
+    return [...enrichedMovies]
+      .sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0))
+      .slice(0, 12);
+  }, [enrichedMovies]);
+
+  const becauseYouWatched = useMemo(() => {
+    return getBecauseYouWatchedRecommendations(enrichedMovies, continueWatching, tasteProfile);
+  }, [enrichedMovies, continueWatching, tasteProfile]);
+
+  const [subtitleSettings, setSubtitleSettings] = useState<SubtitleSettings>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.SUBTITLES);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {
+      fontSize: 'medium',
+      fontColor: '#ffffff',
+      backgroundColor: 'rgba(0, 0, 0, 0.65)',
+      style: 'default'
+    };
+  });
+
+  const [audioSettings, setAudioSettings] = useState<AudioSettings>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.AUDIO);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {
+      language: 'العربية (الأصلية / الدبلجة)',
+      quality: 'ultra',
+      eqPreset: 'cinema',
+      dialogueBoost: true,
+      volumeNormalization: true
+    };
+  });
+
+  const [notifications, setNotifications] = useState<AppNotification[]>([
+    {
+      id: 'notif-1',
+      title: 'فيلم الأسبوع الحصري 🎬',
+      body: 'تمت إضافة Gladiator II بأعلى جودة 4K مع الترجمة الكاملة الآن.',
+      time: 'منذ ساعتين',
+      isRead: false,
+      type: 'release',
+      linkScreen: 'details',
+      movieId: 108
+    },
+    {
+      id: 'notif-2',
+      title: 'ميزة التطور الذكي المتقدم 💎',
+      body: 'تم ترقية مشغل FilmMax ليقدم تشغيلاً فائق السرعة بدون تقطيع.',
+      time: 'منذ 5 ساعات',
+      isRead: false,
+      type: 'system'
+    },
+    {
+      id: 'notif-3',
+      title: 'عرض VIP خاص بمشتركي Premium 👑',
+      body: 'احصل على اشتراك التطور الذكي مجاناً مع خطتك السنوية.',
+      time: 'أمس',
+      isRead: true,
+      type: 'offer'
+    }
+  ]);
+
+  const [liveChannels, setLiveChannels] = useState<LiveChannel[]>(INITIAL_LIVE_CHANNELS);
+  const [groups] = useState<MovieGroup[]>(INITIAL_GROUPS);
+
+  useEffect(() => {
+    secureStorage.setItem(STORAGE_KEYS.FAVS, favorites);
+  }, [favorites]);
+
+  useEffect(() => {
+    secureStorage.setItem(STORAGE_KEYS.LIKED, likedMovies);
+  }, [likedMovies]);
+
+  useEffect(() => {
+    secureStorage.setItem(STORAGE_KEYS.HISTORY, watchHistory);
+  }, [watchHistory]);
+
+  useEffect(() => {
+    secureStorage.setItem(STORAGE_KEYS.DOWNLOADS, downloads);
+  }, [downloads]);
+
+  useEffect(() => {
+    secureStorage.setItem(STORAGE_KEYS.PROFILE, userProfile);
+  }, [userProfile]);
+
+  useEffect(() => {
+    secureStorage.setItem(STORAGE_KEYS.REELS_STATE, reels);
+  }, [reels]);
+
+  useEffect(() => {
+    secureStorage.setItem(STORAGE_KEYS.SUBTITLES, subtitleSettings);
+  }, [subtitleSettings]);
+
+  useEffect(() => {
+    secureStorage.setItem(STORAGE_KEYS.AUDIO, audioSettings);
+  }, [audioSettings]);
+
+  useEffect(() => {
+    async function syncSession() {
+      try {
+        const token = localStorage.getItem('filmmax_session_token_v1');
+        if (!token) return;
+
+        const res = await fetch('/api/auth/me', {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+
+        if (!res.ok) return;
+
+        const data = await res.json();
+        if (data.authenticated && data.user) {
+          const srv = data.user;
+          let prefs: any = {};
+          try {
+            if (srv.preferences) prefs = JSON.parse(srv.preferences);
+          } catch {}
+
+          setUserProfile(prev => ({
+            ...prev,
+            id: srv.id || prev.id,
+            name: prev.name || srv.name,
+            email: prev.email || srv.email,
+            phone: prev.phone || srv.phone,
+            avatar: prev.avatar || srv.avatar,
+            role: srv.role || prev.role,
+            isPremium: srv.isPremium !== undefined ? Boolean(srv.isPremium) : prev.isPremium,
+            premiumExpiry: srv.premiumExpiry || prev.premiumExpiry,
+            coverPhoto: prev.coverPhoto || prefs.coverPhoto,
+            coverVideo: prev.coverVideo || prefs.coverVideo,
+            coverType: prev.coverType || prefs.coverType,
+            coverPosition: prev.coverPosition || prefs.coverPosition,
+            coverOffsetY: prev.coverOffsetY ?? prefs.coverOffsetY,
+            coverZoom: prev.coverZoom ?? prefs.coverZoom,
+            bio: prev.bio || prefs.bio,
+            username: prev.username || prefs.username,
+            favoriteGenre: prev.favoriteGenre || prefs.favoriteGenre,
+            level: prefs.level || prev.level,
+            levelTitle: prefs.levelTitle || prev.levelTitle,
+            xp: prefs.xp || prev.xp
+          }));
+
+          try {
+            const wlRes = await fetch(`/api/db/watchlist/${srv.id}`);
+            if (wlRes.ok) {
+              const wlData = await wlRes.json();
+              if (wlData.watchlist && Array.isArray(wlData.watchlist) && wlData.watchlist.length > 0) {
+                const serverFavIds = wlData.watchlist.map((w: any) => isNaN(Number(w.mediaId)) ? w.mediaId : Number(w.mediaId));
+                setFavorites(prev => Array.from(new Set([...serverFavIds, ...prev])));
+              }
+            }
+          } catch {}
+        }
+      } catch (err) {
+        console.warn('Session sync note:', err);
+      }
+    }
+    syncSession();
+  }, []);
+
+  const navigateTo = useCallback((screen: ScreenId, movie?: Movie, group?: MovieGroup) => {
+    if (movie && movie.id) {
+      setActiveMovie(movie);
+
+      resolveTrailerKey(movie)
+        .then(() => {
+          setMovies(prev => prev.map(m => (m.id === movie.id ? { ...m, youtubeKey: movie.youtubeKey } : m)));
+        })
+        .catch(() => {});
+    }
+
+    if (group) {
+      setActiveGroup(group);
+    }
+
+    if (screen === 'player' && movie) {
+      mediaOrchestrator.requestFocus('cinema', movie.id);
+    } else if (screen === 'reels') {
+      mediaOrchestrator.requestFocus('reels');
+    } else if (screen === 'live') {
+      mediaOrchestrator.requestFocus('live');
+    } else {
+      mediaOrchestrator.releaseFocus(mediaOrchestrator.getActiveDomain());
+    }
+
+    setActiveScreen(screen);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  const toggleFavorite = useCallback((movieId: string | number) => {
+    setFavorites(prev => {
+      const exists = prev.includes(movieId);
+      if (exists) {
+        showToast('تمت الإزالة من قائمتك');
+        try {
+          fetch('/api/db/watchlist', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: userProfile.id, mediaId: String(movieId) })
+          }).catch(() => {});
+        } catch {}
+        return prev.filter(id => id !== movieId);
+      } else {
+        showToast('تمت الإضافة إلى قائمتك ⭐');
+        try {
+          const targetMovie = movies.find(m => m.id === movieId);
+          fetch('/api/db/watchlist', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: userProfile.id,
+              mediaId: String(movieId),
+              mediaType: targetMovie?.type === 'مسلسل' ? 'series' : 'movie',
+              title: targetMovie?.title || 'عمل سينمائي',
+              poster: targetMovie?.poster || ''
+            })
+          }).catch(() => {});
+        } catch {}
+        return [movieId, ...prev];
+      }
+    });
+  }, [showToast, userProfile.id, movies]);
+
+  const isFavorite = useCallback((movieId: string | number) => {
+    return favorites.includes(movieId);
+  }, [favorites]);
+
+  const toggleLikeMovie = useCallback((movieId: string | number) => {
+    setLikedMovies(prev => {
+      const exists = prev.includes(movieId);
+      if (exists) {
+        showToast('تمت إزالة الإعجاب عن العمل');
+        return prev.filter(id => id !== movieId);
+      } else {
+        showToast('أعجبك هذا العمل ❤️');
+        return [movieId, ...prev];
+      }
+    });
+  }, [showToast]);
+
+  const isMovieLiked = useCallback((movieId: string | number) => {
+    return likedMovies.includes(movieId);
+  }, [likedMovies]);
+
+  const addToHistory = useCallback((movie: Movie, pct: number = 20) => {
+    setWatchHistory(prev => {
+      const filtered = prev.filter(item => item.movie.id !== movie.id);
+      return [
+        {
+          movie,
+          watchedPct: pct,
+          lastTime: `متبقي ${Math.max(10, 100 - pct)} دقيقة`
+        },
+        ...filtered
+      ].slice(0, 15);
+    });
+
+    try {
+      fetch('/api/db/history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: userProfile.id,
+          mediaId: String(movie.id),
+          mediaType: movie.type === 'مسلسل' ? 'series' : 'movie',
+          title: movie.title,
+          poster: movie.poster,
+          progress: pct,
+          duration: 100
+        })
+      }).catch(() => {});
+    } catch {}
+  }, [userProfile.id]);
+
+  const clearWatchHistory = useCallback(() => {
+    setWatchHistory([]);
+    showToast('تم مسح سجل المشاهدة بالكامل');
+  }, [showToast]);
+
+  const addDownload = useCallback((movie: Movie, quality: string = '1080p FHD') => {
+    setDownloads(prev => {
+      if (prev.some(d => d.movieId === movie.id)) {
+        showToast('الفيلم موجود بالفعل في التنزيلات ويمكنك مشاهدته الآن بدون إنترنت');
+        return prev;
+      }
+      showToast(`تم حفظ "${movie.title}" في التنزيلات بنجاح 📥`);
+      const newItem: DownloadItem = {
+        id: `dl-${Date.now()}`,
+        movieId: movie.id,
+        title: movie.title,
+        poster: movie.poster,
+        quality,
+        size: '2.4 GB',
+        progress: 100,
+        status: 'completed',
+        savedAt: Date.now()
+      };
+      return [newItem, ...prev];
+    });
+  }, [showToast]);
+
+  const removeDownload = useCallback((id: string) => {
+    setDownloads(prev => prev.filter(d => d.id !== id));
+    showToast('تم حذف التنزيل من الذاكرة');
+  }, [showToast]);
+
+  const playDownloadedMovie = useCallback((downloadItem: DownloadItem) => {
+    let targetMovie = movies.find(m => m.id === downloadItem.movieId);
+    if (!targetMovie) {
+      targetMovie = {
+        id: downloadItem.movieId,
+        title: downloadItem.title,
+        rating: 8.8,
+        poster: downloadItem.poster,
+        type: 'فيلم',
+        year: '2024',
+        videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+        overview: 'تم تنزيل هذا العمل بالكامل على جهازك وهو جاهز للمشاهدة بدون اتصال بالإنترنت بأعلى دقة وسلاسة.',
+        genres: ['تنزيلات', 'أوفلاين', 'سينما']
+      };
+    }
+    showToast(`فتح المشغل لتشغيل "${downloadItem.title}" بدون إنترنت 🎬`);
+    navigateTo('player', targetMovie);
+  }, [movies, navigateTo, showToast]);
+
+  const downloadReel = useCallback((reel: ReelItem) => {
+    showToast(`تم تنزيل مقطع "${reel.title}" بنجاح في المعرض لمشاهدته بدون إنترنت 📥✨`);
+  }, [showToast]);
+
+  const toggleTwoFactor = useCallback((enable: boolean) => {
+    setTwoFactorEnabled(enable);
+    localStorage.setItem(STORAGE_KEYS.TWO_FA, JSON.stringify({ enabled: enable }));
+    showToast(
+      enable
+        ? 'تم تفعيل المصادقة الثنائية (2FA) وتأمين الحساب بنجاح 🛡️'
+        : 'تم تعطيل المصادقة الثنائية'
+    );
+  }, [showToast]);
+
+  const verify2FACode = useCallback((code: string) => {
+    if (code.trim().length === 6 || twoFactorBackupCodes.includes(code.trim())) {
+      showToast('تم التحقق من الرمز بنجاح ✅');
+      return true;
+    }
+    showToast('رمز التحقق غير صحيح، يرجى إعادة المحاولة');
+    return false;
+  }, [twoFactorBackupCodes, showToast]);
+
+  const markNotificationAsRead = useCallback((id: string) => {
+    setNotifications(prev => prev.map(n => (n.id === id ? { ...n, isRead: true } : n)));
+  }, []);
+
+  const clearAllNotifications = useCallback(() => {
+    setNotifications([]);
+    showToast('تم مسح جميع الإشعارات');
+  }, [showToast]);
+
+  const unreadNotificationsCount = notifications.filter(n => !n.isRead).length;
+
+  const updateUserProfile = useCallback(async (data: Partial<UserProfile>) => {
+    const sanitizedData: Partial<UserProfile> = { ...data };
+    if (sanitizedData.name) sanitizedData.name = sanitizeInput(sanitizedData.name);
+    if (sanitizedData.email) sanitizedData.email = sanitizeInput(sanitizedData.email);
+    if (sanitizedData.phone) sanitizedData.phone = sanitizeInput(sanitizedData.phone);
+
+    if (sanitizedData.avatar && sanitizedData.avatar.startsWith('data:image')) {
+      sanitizedData.avatar = await compressImage(sanitizedData.avatar, 500, 0.85);
+    }
+    if (sanitizedData.coverPhoto && sanitizedData.coverPhoto.startsWith('data:image')) {
+      sanitizedData.coverPhoto = await compressImage(sanitizedData.coverPhoto, 1280, 0.82);
+    }
+
+    setUserProfile(prev => {
+      const updated = { ...prev, ...sanitizedData };
+      try {
+        localStorage.setItem('userProfile', JSON.stringify(updated));
+        localStorage.setItem('filmmax_react_profile_v5', JSON.stringify(updated));
+        localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(updated));
+        secureStorage.setItem(STORAGE_KEYS.PROFILE, updated);
+
+        try {
+          const savedUsers = localStorage.getItem('filmmax_registered_users');
+          if (savedUsers) {
+            let usersList = JSON.parse(savedUsers);
+            if (Array.isArray(usersList)) {
+              const idx = usersList.findIndex((u: any) => u.id === updated.id || u.email?.toLowerCase() === updated.email?.toLowerCase());
+              if (idx >= 0) {
+                usersList[idx] = { ...usersList[idx], ...updated };
+              } else {
+                usersList.push(updated);
+              }
+              localStorage.setItem('filmmax_registered_users', JSON.stringify(usersList));
+            }
+          }
+        } catch {}
+      } catch (e) {
+        console.warn("Storage write note:", e);
+      }
+      return updated;
+    });
+
+    try {
+      fetch('/api/db/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: userProfile.id,
+          email: sanitizedData.email || userProfile.email,
+          name: sanitizedData.name || userProfile.name,
+          avatar: sanitizedData.avatar || userProfile.avatar,
+          role: userProfile.role || 'user',
+          phone: sanitizedData.phone || userProfile.phone,
+          preferences: JSON.stringify({ ...userProfile, ...sanitizedData })
+        })
+      }).catch(() => {});
+    } catch {}
+
+    showToast('تم حفظ التعديلات وحفظها دائماً 🛡️✨');
+  }, [userProfile, showToast]);
+
+  const likeReel = useCallback(async (reelId: string | number, forceLiked?: boolean) => {
+    setReels(prev =>
+      prev.map(r => {
+        if (r.id === reelId) {
+          const nextLiked = forceLiked !== undefined ? forceLiked : !r.isLiked;
+          if (r.isLiked === nextLiked) return r;
+          return {
+            ...r,
+            isLiked: nextLiked,
+            likesCount: r.likesCount + (nextLiked ? 1 : -1)
+          };
+        }
+        return r;
+      })
+    );
+
+    try {
+      await fetch('/api/reels/like', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: userProfile.id, reelId: String(reelId) })
+      });
+    } catch {}
+  }, [userProfile.id]);
+
+  const saveReel = useCallback((reelId: string | number) => {
+    setReels(prev =>
+      prev.map(r => {
+        if (r.id === reelId) {
+          const isSaved = !r.isSaved;
+          showToast(isSaved ? 'تم حفظ الريلز في المحفوظات ⭐' : 'تمت الإزالة من المحفوظات');
+          return {
+            ...r,
+            isSaved,
+            savesCount: r.savesCount + (isSaved ? 1 : -1)
+          };
+        }
+        return r;
+      })
+    );
+  }, [showToast]);
+
+  const followReelCreator = useCallback((reelIdOrCreatorName: string | number) => {
+    setReels(prev =>
+      prev.map(r => {
+        if (r.id === reelIdOrCreatorName || r.creator.name === reelIdOrCreatorName) {
+          const nextState = !r.isFollowing;
+          showToast(nextState ? `تمت متابعة ${r.creator.name} بنجاح` : `تم إلغاء متابعة ${r.creator.name}`);
+          return {
+            ...r,
+            isFollowing: nextState,
+            creator: {
+              ...r.creator,
+              isFollowing: nextState,
+              followersCount: (r.creator.followersCount || 100) + (nextState ? 1 : -1)
+            }
+          };
+        }
+        return r;
+      })
+    );
+  }, [showToast]);
+
+  const addReelComment = useCallback(async (reelId: string | number, commentText: string) => {
+    if (!commentText.trim()) return;
+
+    const newComment = {
+      id: `c-${Date.now()}`,
+      author: userProfile.name,
+      avatar: userProfile.avatar,
+      text: commentText.trim(),
+      time: 'الآن',
+      likes: 0,
+      isLiked: false
+    };
+
+    setReels(prev =>
+      prev.map(r => {
+        if (r.id === reelId) {
+          return {
+            ...r,
+            commentsCount: r.commentsCount + 1,
+            comments: [newComment, ...(r.comments || [])]
+          };
+        }
+        return r;
+      })
+    );
+
+    showToast('تمت إضافة تعليقك على الريلز بنجاح 💬');
+
+    try {
+      await fetch('/api/reels/comment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: userProfile.id,
+          reelId: String(reelId),
+          content: commentText.trim()
+        })
+      });
+    } catch {}
+  }, [userProfile.id, userProfile.name, userProfile.avatar, showToast]);
+
+  const likeReelComment = useCallback((reelId: string | number, commentId: string) => {
+    setReels(prev =>
+      prev.map(r => {
+        if (r.id === reelId && r.comments) {
+          return {
+            ...r,
+            comments: r.comments.map(c => {
+              if (c.id === commentId) {
+                const nextLiked = !c.isLiked;
+                return {
+                  ...c,
+                  isLiked: nextLiked,
+                  likes: c.likes + (nextLiked ? 1 : -1)
+                };
+              }
+              return c;
+            })
+          };
+        }
+        return r;
+      })
+    );
+  }, []);
+
+  const addNewReel = useCallback(async (reelData: Partial<ReelItem>) => {
+    const tempId = reelData.id ? String(reelData.id) : `user-reel-${Date.now()}`;
+    const newReel: ReelItem = {
+      id: tempId,
+      createdAt: reelData.createdAt || Date.now(),
+      userId: userProfile.id,
+      title: reelData.title || 'مقطع سينمائي جديد',
+      category: reelData.category || 'مشاهد سينمائية',
+      videoUrl: reelData.videoUrl || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+      poster: reelData.poster || reelData.thumbnailUrl || 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=800',
+      thumbnailUrl: reelData.thumbnailUrl || reelData.poster || 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=800',
+      movieId: reelData.movieId,
+      movieTitle: reelData.movieTitle,
+      moviePoster: reelData.moviePoster,
+      movieRating: reelData.movieRating || 8.5,
+      movieType: reelData.movieType || 'فيلم',
+      creator: {
+        name: userProfile.name,
+        username: userProfile.username || 'me',
+        avatar: userProfile.avatar,
+        badge: 'صانع محتوى',
+        bio: userProfile.bio || 'عاشق للسينما والمسلسلات 🎬',
+        followersCount: 1,
+        isFollowing: true
+      },
+      audioTrack: reelData.audioTrack || {
+        title: reelData.audioTrack?.title || 'الصوت الأصلي - FilmMax Creator',
+        artist: userProfile.name
+      },
+      likesCount: 0,
+      commentsCount: 0,
+      sharesCount: 0,
+      savesCount: 0,
+      isLiked: false,
+      isSaved: false,
+      isFollowing: true,
+      description: reelData.description || 'مقتطف مميز من فيلمي المفضل! شاركوني آراءكم 🍿🔥',
+      tags: reelData.tags || ['سينما', 'ريلز_جديد', 'FilmMax'],
+      comments: [],
+      isUserCreated: true
+    };
+
+    try {
+      const rawUserReels = localStorage.getItem(STORAGE_KEYS.USER_REELS);
+      const existingUserReels: ReelItem[] = rawUserReels ? JSON.parse(rawUserReels) : [];
+      const updatedUserReels = [newReel, ...existingUserReels.filter(r => r.id !== tempId)];
+      localStorage.setItem(STORAGE_KEYS.USER_REELS, JSON.stringify(updatedUserReels));
+    } catch (e) {
+      console.warn("Saving user reel locally note:", e);
+    }
+
+    setReels(prev => [newReel, ...prev]);
+    showToast('جاري نشر المقطع... 🚀');
+
+    try {
+      const response = await fetch('/api/reels', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: userProfile.id,
+          videoUrl: newReel.videoUrl,
+          thumbnailUrl: newReel.thumbnailUrl || newReel.poster,
+          description: newReel.description,
+          tags: newReel.tags,
+          musicTitle: newReel.audioTrack?.title,
+          creatorName: userProfile.name,
+          creatorAvatar: userProfile.avatar
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.reel) {
+          setReels(prev => prev.map(r => r.id === tempId ? {
+            ...r,
+            id: data.reel.id,
+            thumbnailUrl: data.reel.thumbnailUrl || r.thumbnailUrl
+          } : r));
+
+          try {
+            const raw = localStorage.getItem(STORAGE_KEYS.USER_REELS);
+            if (raw) {
+              const list: ReelItem[] = JSON.parse(raw);
+              const updatedList = list.map(r => r.id === tempId ? { ...r, id: data.reel.id } : r);
+              localStorage.setItem(STORAGE_KEYS.USER_REELS, JSON.stringify(updatedList));
+            }
+          } catch {}
+
+          showToast('تم نشر مقطع الريلز وحفظه دائماً بنجاح! 🎬✨');
+        }
+      } else {
+        throw new Error('Server upload failed');
+      }
+    } catch (err) {
+      console.warn('Reel server sync note (saved locally):', err);
+      showToast('تم حفظ ونشر المقطع في حسابك بنجاح! 🎬');
+    }
+  }, [userProfile, showToast]);
+
+  const deleteReel = useCallback(async (reelId: string | number) => {
+    setReels(prev => prev.filter(r => r.id !== reelId));
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.USER_REELS);
+      if (raw) {
+        const list = JSON.parse(raw);
+        localStorage.setItem(STORAGE_KEYS.USER_REELS, JSON.stringify(list.filter((r: any) => r.id !== reelId)));
+      }
+    } catch {}
+
+    try {
+      await fetch(`/api/reels/${reelId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: userProfile.id })
+      });
+    } catch (e) {
+      console.warn('Delete reel backend sync note:', e);
+    }
+    showToast('تم حذف مقطع الريلز بنجاح');
+  }, [userProfile.id, showToast]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('filmmax_user_stories_v1', JSON.stringify(stories));
+    } catch {}
+  }, [stories]);
+
+  useEffect(() => {
+    fetch('/api/stories')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.stories) && data.stories.length > 0) {
+          const twentyFourHoursAgo = Date.now() - 24 * 60 * 60 * 1000;
+          setStories(prev => {
+            const map = new Map<string, UserStory>();
+            prev.filter(s => s.createdAt > twentyFourHoursAgo).forEach(s => map.set(s.id, s));
+            data.stories.forEach((s: any) => map.set(s.id, s));
+            return Array.from(map.values()).sort((a, b) => b.createdAt - a.createdAt);
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const addStory = useCallback(async (storyData: { mediaUrl: string; mediaType: 'image' | 'video'; caption?: string }) => {
+    const tempId = `story-${Date.now()}`;
+    const newStory: UserStory = {
+      id: tempId,
+      userId: userProfile.id,
+      userName: userProfile.name,
+      userAvatar: userProfile.avatar,
+      mediaUrl: storyData.mediaUrl,
+      mediaType: storyData.mediaType,
+      caption: storyData.caption || '',
+      createdAt: Date.now(),
+      duration: 5
+    };
+
+    setStories(prev => [newStory, ...prev]);
+    showToast('تمت إضافة قصتك بنجاح 🌟');
+
+    try {
+      const res = await fetch('/api/stories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: userProfile.id,
+          userName: userProfile.name,
+          userAvatar: userProfile.avatar,
+          mediaUrl: storyData.mediaUrl,
+          mediaType: storyData.mediaType,
+          caption: storyData.caption || '',
+          duration: 5
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.story) {
+          setStories(prev => prev.map(s => s.id === tempId ? data.story : s));
+        }
+      }
+    } catch (e) {
+      console.warn('Story backend sync note (saved locally):', e);
+    }
+  }, [userProfile, showToast]);
+
+  const deleteStory = useCallback(async (id: string) => {
+    setStories(prev => prev.filter(s => s.id !== id));
+    showToast('تم حذف القصة');
+    try {
+      await fetch(`/api/stories/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: userProfile.id })
+      });
+    } catch (e) {
+      console.warn('Delete story server note:', e);
+    }
+  }, [userProfile.id, showToast]);
+
+  const toggleLiveReminder = useCallback((channelId: string) => {
+    setLiveChannels(prev =>
+      prev.map(ch => {
+        if (ch.id === channelId) {
+          const next = !ch.isReminded;
+          showToast(next ? `تم ضبط تذكير لبرنامج: ${ch.currentShow.title}` : 'تم إلغاء التذكير');
+          return { ...ch, isReminded: next };
+        }
+        return ch;
+      })
+    );
+  }, [showToast]);
+
+  const updateSubtitleSettings = useCallback((data: Partial<SubtitleSettings>) => {
+    setSubtitleSettings(prev => ({ ...prev, ...data }));
+    showToast('تم تحديث إعدادات الترجمة');
+  }, [showToast]);
+
+  const updateAudioSettings = useCallback((data: Partial<AudioSettings>) => {
+    setAudioSettings(prev => ({ ...prev, ...data }));
+    showToast('تم تحديث إعدادات الصوت والمعادل');
+  }, [showToast]);
+
+  return (
+    <AppContext.Provider
+      value={{
+        activeScreen,
+        navigateTo,
+        movies,
+        activeMovie,
+        setActiveMovie,
+        activeGroup,
+        setActiveGroup,
+        favorites,
+        toggleFavorite,
+        isFavorite,
+        likedMovies,
+        toggleLikeMovie,
+        isMovieLiked,
+        watchHistory,
+        addToHistory,
+        clearWatchHistory,
+        downloads,
+        addDownload,
+        removeDownload,
+        playDownloadedMovie,
+        downloadReel,
+        notifications,
+        unreadNotificationsCount,
+        markNotificationAsRead,
+        clearAllNotifications,
+        userProfile,
+        updateUserProfile,
+        currentUser: userProfile,
+        setCurrentUser: setUserProfile,
+        userData: userProfile,
+        updateUserData: updateUserProfile,
+        reels,
+        likeReel,
+        saveReel,
+        followReelCreator,
+        addReelComment,
+        likeReelComment,
+        addNewReel,
+        deleteReel,
+        liveChannels,
+        toggleLiveReminder,
+        groups,
+        searchQuery,
+        setSearchQuery,
+        subtitleSettings,
+        updateSubtitleSettings,
+        isSubtitlesEnabled,
+        setIsSubtitlesEnabled,
+        audioSettings,
+        updateAudioSettings,
+        activeDubbing,
+        setActiveDubbing,
+        language,
+        setLanguage,
+        currentLanguageInfo,
+        t,
+        theme,
+        setTheme,
+        twoFactorEnabled,
+        twoFactorSecret,
+        twoFactorBackupCodes,
+        toggleTwoFactor,
+        verify2FACode,
+        isPremiumModalOpen,
+        setIsPremiumModalOpen,
+        isEvolutionModalOpen,
+        setIsEvolutionModalOpen,
+        isShareModalOpen,
+        setIsShareModalOpen,
+        shareTargetMovie,
+        setShareTargetMovie,
+        isChatSupportOpen,
+        setIsChatSupportOpen,
+        isNotificationOpen,
+        setIsNotificationOpen,
+        selectedPlan,
+        setSelectedPlan,
+        toastMessage,
+        showToast,
+        refreshMovies,
+        isLoadingMovies,
+        loadMoreMovies,
+        isLoadingMore,
+        startupStage,
+        setStartupStage,
+        replayIntro,
+        openWelcomeSlides,
+        openAuthScreen,
+        userAccounts,
+        activeAccountId,
+        switchAccount,
+        addNewAccount,
+        deleteAccount,
+        isAccountSwitcherOpen,
+        setIsAccountSwitcherOpen,
+        isTVRemoteOpen,
+        setIsTVRemoteOpen,
+        isIngestionStudioOpen,
+        setIsIngestionStudioOpen,
+        isNetflixArchOpen,
+        setIsNetflixArchOpen,
+        isMoreSidebarOpen,
+        setIsMoreSidebarOpen,
+        activeReelId,
+        setActiveReelId,
+        continueWatching,
+        addToContinueWatching,
+        removeFromContinueWatching,
+        recommendations,
+        tasteProfile,
+        becauseYouWatched,
+        stories,
+        addStory,
+        deleteStory
+      }}
+    >
+      {children}
+    </AppContext.Provider>
+  );
+};
+
+export const useApp = (): AppContextType => {
+  const context = useContext(AppContext);
+  if (!context) {
+    throw new Error('useApp must be used within an AppProvider');
+  }
+  return context;
+};
+```
+
+ملف 2: `src/components/VideoPlayerView.tsx`
+
+```tsx
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { useApp } from '../context/AppContext';
+import { MovieCard } from './MovieCard';
+import { mediaOrchestrator } from '../services/mediaSessionOrchestrator';
+import { estimateOptimalPlaybackProfile, QualityProfileRecommendation } from '../services/qualityEstimator';
+import { getSubtitlesForMovie } from '../data/subtitlesData';
+import {
+  Play,
+  Pause,
+  RotateCcw,
+  RotateCw,
+  Star,
+  Volume2,
+  VolumeX,
+  Maximize,
+  Minimize,
+  Sliders,
+  Settings,
+  Share2,
+  Info,
+  Tv,
+  ArrowRight,
+  Sparkles,
+  Subtitles,
+  Gauge,
+  ShieldCheck,
+  Lock,
+  Unlock,
+  FastForward,
+  SkipForward,
+  Download,
+  Mic,
+  Gamepad2,
+  Check,
+  X,
+  Moon,
+  Clock,
+  Flame,
+  Music,
+  Award,
+  Film,
+  Eye,
+  SlidersHorizontal,
+  Zap,
+  Radio,
+  Layers,
+  Activity
+} from 'lucide-react';
+import { securityShield } from '../services/securityEngine';
+import { AppLogo } from './AppLogo';
+import Hls from 'hls.js';
+import { videoQoS, VideoQoSMetrics } from '../services/telemetry/videoQoS';
+
+export const VideoPlayerView: React.FC = () => {
+  const {
+    activeMovie,
+    movies,
+    navigateTo,
+    setIsShareModalOpen,
+    setShareTargetMovie,
+    addToHistory,
+    subtitleSettings,
+    updateSubtitleSettings,
+    audioSettings,
+    updateAudioSettings,
+    addDownload,
+    showToast,
+    setIsTVRemoteOpen,
+    addToContinueWatching,
+    continueWatching
+  } = useApp();
+
+  const currentMovie = activeMovie || movies[0];
+
+  if (!currentMovie) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center text-white">
+        <div className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 text-center">
+          لا يوجد محتوى متاح الآن، يرجى المحاولة لاحقًا.
+        </div>
+      </div>
+    );
+  }
+
+  const [isPlaying, setIsPlaying] = useState<boolean>(true);
+  const [isMuted, setIsMuted] = useState<boolean>(false);
+  const [volume, setVolume] = useState<number>(1);
+  const [currentTime, setCurrentTime] = useState<number>(0);
+  const [duration, setDuration] = useState<number>(180);
+  const [showControls, setShowControls] = useState<boolean>(true);
+  const [isCinemaMode, setIsCinemaMode] = useState<boolean>(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
+  const [selectedQuality, setSelectedQuality] = useState<string>('4K Ultra HD');
+  const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState<boolean>(false);
+  const [isSubtitlesOpen, setIsSubtitlesOpen] = useState<boolean>(false);
+  const [isAudioMenuOpen, setIsAudioMenuOpen] = useState<boolean>(false);
+  const [isQoSStatsOpen, setIsQoSStatsOpen] = useState<boolean>(false);
+
+  const [activeCdnEdge, setActiveCdnEdge] = useState<string>("FilmMax-Edge-FRA-01 (Frankfurt)");
+  const [isCdnFailoverActive, setIsCdnFailoverActive] = useState<boolean>(false);
+  const [cdnPingMs, setCdnPingMs] = useState<number>(14);
+  const [isNextPreloaded, setIsNextPreloaded] = useState<boolean>(false);
+  const [networkProfile, setNetworkProfile] = useState<QualityProfileRecommendation | null>(null);
+
+  useEffect(() => {
+    estimateOptimalPlaybackProfile().then((profile) => {
+      setNetworkProfile(profile);
+      if (profile.latencyMs) {
+        setCdnPingMs(profile.latencyMs);
+      }
+    });
+  }, [currentMovie?.id]);
+
+  const handleStreamError = useCallback(() => {
+    if (!currentMovie || !videoRef.current) return;
+
+    if (!isCdnFailoverActive) {
+      setIsCdnFailoverActive(true);
+      setActiveCdnEdge("FilmMax-Edge-DXB-03 (Dubai Backup ⚡)");
+      setCdnPingMs(19);
+      showToast("تم التحويل التلقائي والشفاف لخادم البث الاحتياطي ⚡ (Failover Route Active)");
+      const resumePos = videoRef.current.currentTime || 0;
+      videoRef.current.load();
+      videoRef.current.currentTime = resumePos;
+      videoRef.current.play().catch(() => {});
+    }
+  }, [isCdnFailoverActive, showToast, currentMovie]);
+
+  const [isScreenLocked, setIsScreenLocked] = useState<boolean>(false);
+  const [showLockPrompt, setShowLockPrompt] = useState<boolean>(false);
+
+  const [isInteractiveOpen, setIsInteractiveOpen] = useState<boolean>(false);
+  const [chosenBranch, setChosenBranch] = useState<string | null>(null);
+  const [interactiveTimer, setInteractiveTimer] = useState<number>(10);
+
+  const [showAutoNext, setShowAutoNext] = useState<boolean>(false);
+  const [autoNextCountdown, setAutoNextCountdown] = useState<number>(5);
+
+  const [activeAudioTrack, setActiveAudioTrack] = useState<string>('دبلجة عربية فصحى 🇸🇦');
+
+  const [isXRayOpen, setIsXRayOpen] = useState<boolean>(false);
+  const [activeXRayTab, setActiveXRayTab] = useState<'actors' | 'music' | 'trivia'>('actors');
+
+  const [isAmbilightEnabled, setIsAmbilightEnabled] = useState<boolean>(true);
+
+  const [audioEQMode, setAudioEQMode] = useState<'normal' | 'clearVoice' | 'bassBoost' | 'nightMode'>('normal');
+  const [isSleepTimerOpen, setIsSleepTimerOpen] = useState<boolean>(false);
+  const [sleepTimerMinutes, setSleepTimerMinutes] = useState<number | null>(null);
+  const [sleepTimerRemaining, setSleepTimerRemaining] = useState<number | null>(null);
+
+  const [isBingeStatsOpen, setIsBingeStatsOpen] = useState<boolean>(false);
+  const [totalWatchMinutes, setTotalWatchMinutes] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('filmmax_binge_mins');
+      return saved ? parseInt(saved, 10) : 248;
+    } catch {
+      return 248;
+    }
+  });
+  const [streakDays, setStreakDays] = useState<number>(7);
+
+  const activeYoutubeKey = currentMovie.youtubeKey;
+  const hasValidVideo = !!activeYoutubeKey || (!!currentMovie.videoUrl && !currentMovie.videoUrl.includes('undefined'));
+
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const hlsRef = useRef<Hls | null>(null);
+  const [liveQoS, setLiveQoS] = useState<VideoQoSMetrics | null>(null);
+  const playerContainerRef = useRef<HTMLDivElement>(null);
+  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const nextMovieIndex = movies.findIndex(m => m.id === currentMovie.id) + 1;
+  const nextMovie = movies[nextMovieIndex] || movies[0] || null;
+
+  const subtitleCues = useMemo(() => {
+    return getSubtitlesForMovie(currentMovie.title, duration || 180);
+  }, [currentMovie.title, duration]);
+
+  const currentSubtitleText = useMemo(() => {
+    const matched = subtitleCues.find(c => currentTime >= c.start && currentTime <= c.end);
+    if (!matched) return null;
+    if (activeAudioTrack.includes('العراقية')) return matched.iq;
+    if (activeAudioTrack.includes('English')) return matched.en;
+    return matched.ar;
+  }, [subtitleCues, currentTime, activeAudioTrack]);
+
+  useEffect(() => {
+    let ticker: any;
+    if (isPlaying) {
+      ticker = setInterval(() => {
+        if (videoRef.current) {
+          const cur = videoRef.current.currentTime;
+          const dur = videoRef.current.duration || 180;
+          setCurrentTime(cur);
+          setDuration(dur);
+        } else {
+          setCurrentTime(prev => {
+            const next = prev + 1;
+            if (next >= (duration || 180)) {
+              return 0;
+            }
+            return next;
+          });
+        }
+      }, 1000);
+    }
+    return () => clearInterval(ticker);
+  }, [isPlaying, duration]);
+
+  const formatTime = (secs: number) => {
+    const s = Math.floor(secs);
+    const m = Math.floor(s / 60);
+    const h = Math.floor(m / 60);
+    const remainingM = m % 60;
+    const remainingS = s % 60;
+    if (h > 0) {
+      return `${h}:${remainingM < 10 ? '0' : ''}${remainingM}:${remainingS < 10 ? '0' : ''}${remainingS}`;
+    }
+    return `${remainingM}:${remainingS < 10 ? '0' : ''}${remainingS}`;
+  };
+
+  useEffect(() => {
+    mediaOrchestrator.requestFocus("cinema", currentMovie?.id);
+    const unsubscribe = mediaOrchestrator.subscribe((activeDomain) => {
+      if (activeDomain !== "cinema") {
+        setIsPlaying(false);
+        if (videoRef.current) videoRef.current.pause();
+      }
+    });
+    return () => {
+      unsubscribe();
+      mediaOrchestrator.releaseFocus("cinema");
+    };
+  }, [currentMovie?.id]);
+
+  const lastTrackedMovieIdRef = useRef<string | number | null>(null);
+  useEffect(() => {
+    if (currentMovie && currentMovie.id !== lastTrackedMovieIdRef.current) {
+      lastTrackedMovieIdRef.current = currentMovie.id;
+      addToHistory(currentMovie, 35);
+
+      const saved = continueWatching.find(item => item.videoId === currentMovie.id);
+      if (saved && videoRef.current && saved.progress < 95) {
+        videoRef.current.currentTime = saved.currentTime;
+        showToast(`استئناف المشاهدة من ${formatTime(saved.currentTime)} 🎬`);
+      }
+    }
+  }, [currentMovie?.id, addToHistory, showToast]);
+
+  useEffect(() => {
+    if (!currentMovie) return;
+
+    const isHls = typeof currentMovie.videoUrl === 'string' && currentMovie.videoUrl.includes('.m3u8');
+    const sourceType = currentMovie.youtubeKey ? 'youtube' : isHls ? 'hls' : 'mp4';
+    videoQoS.startSession(String(currentMovie.id || 'demo'), currentMovie.title || 'FilmMax Stream', sourceType);
+
+    const qosTicker = setInterval(() => {
+      setLiveQoS(videoQoS.getSnapshot());
+    }, 1500);
+
+    if (isHls && videoRef.current) {
+      if (Hls.isSupported()) {
+        if (hlsRef.current) {
+          hlsRef.current.destroy();
+        }
+        const hls = new Hls({
+          enableWorker: true,
+          lowLatencyMode: true,
+          backBufferLength: 60,
+        });
+        hlsRef.current = hls;
+        hls.loadSource(currentMovie.videoUrl!);
+        hls.attachMedia(videoRef.current);
+
+        hls.on(Hls.Events.MANIFEST_PARSED, (_event, data) => {
+          if (data.levels && data.levels.length > 0) {
+            const initialLevel = data.levels[0];
+            videoQoS.onQualitySwitch(`${initialLevel.height || 1080}p`, Math.round((initialLevel.bitrate || 4500000) / 1000));
+          }
+          if (videoRef.current && isPlaying) {
+            videoRef.current.play().catch(() => {});
+          }
+        });
+
+        hls.on(Hls.Events.LEVEL_SWITCHED, (_event, data) => {
+          const currentLevel = hls.levels[data.level];
+          if (currentLevel) {
+            videoQoS.onQualitySwitch(`${currentLevel.height}p ABR`, Math.round(currentLevel.bitrate / 1000));
+          }
+        });
+
+        hls.on(Hls.Events.ERROR, (_event, data) => {
+          if (data.fatal) {
+            videoQoS.onPlaybackError(`HLS Fatal: ${data.details}`);
+            handleStreamError();
+          }
+        });
+      } else if (videoRef.current.canPlayType('application/vnd.apple.mpegurl')) {
+        videoRef.current.src = currentMovie.videoUrl!;
+      }
+    } else if (videoRef.current && currentMovie.videoUrl && !isHls) {
+      videoRef.current.src = currentMovie.videoUrl;
+    }
+
+    return () => {
+      clearInterval(qosTicker);
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+      videoQoS.endSession();
+    };
+  }, [currentMovie?.id, currentMovie?.videoUrl, currentMovie?.youtubeKey, handleStreamError]);
+
+  const handleUserActivity = () => {
+    if (isScreenLocked) {
+      setShowLockPrompt(true);
+      setTimeout(() => setShowLockPrompt(false), 3000);
+      return;
+    }
+
+    setShowControls(true);
+    if (controlsTimeoutRef.current) {
+      clearTimeout(controlsTimeoutRef.current);
+    }
+    controlsTimeoutRef.current = setTimeout(() => {
+      if (isPlaying && !isSettingsMenuOpen && !isSubtitlesOpen && !isAudioMenuOpen && !isInteractiveOpen) {
+        setShowControls(false);
+      }
+    }, 3800);
+  };
+
+  const sendYtCommand = (command: string, arg?: any) => {
+    const iframe = document.getElementById('filmmax-yt-player') as HTMLIFrameElement | null;
+    if (iframe && iframe.contentWindow) {
+      iframe.contentWindow.postMessage(
+        JSON.stringify({
+          event: 'command',
+          func: command,
+          args: arg !== undefined ? (Array.isArray(arg) ? arg : [arg]) : []
+        }),
+        '*'
+      );
+    }
+  };
+
+  const triggerDubbingVoice = (trackName: string) => {
+    setActiveAudioTrack(trackName);
+    showToast(`تم تغيير المسار الصوتي والبدء بالدبلجة: ${trackName} 🎙️`);
+    setIsAudioMenuOpen(false);
+
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = trackName.includes('الذكاء الاصطناعي') ? 'sawtooth' : 'sine';
+      osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.3);
+      gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.3);
+    } catch {}
+
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      let text = '';
+      let lang = 'ar-SA';
+      let pitch = 1.0;
+      let rate = 1.0;
+
+      if (trackName.includes('فصحى')) {
+        text = `تم تفعيل الدبلجة العربية الفصحى لفيلم ${currentMovie.title}. مشاهدة ممتعة على فيلم ماكس.`;
+        lang = 'ar-SA';
+        pitch = 1.0;
+      } else if (trackName.includes('العراقية')) {
+        text = `هلا بيك! دبلجة اللهجة العراقية حية الآن لفيلم ${currentMovie.title}.`;
+        lang = 'ar-IQ';
+        pitch = 0.95;
+        rate = 1.05;
+      } else if (trackName.includes('English')) {
+        text = `English original audio activated for ${currentMovie.title}. Enjoy the show!`;
+        lang = 'en-US';
+        pitch = 1.0;
+      } else if (trackName.includes('الذكاء الاصطناعي')) {
+        text = `تمت معالجة الصوت الاصطناعي والتحسين المباشر لفيلم ${currentMovie.title}.`;
+        lang = 'ar-SA';
+        pitch = 1.25;
+        rate = 1.1;
+      }
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = lang;
+      utterance.pitch = pitch;
+      utterance.rate = rate;
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
+  const togglePlay = () => {
+    if (isScreenLocked) return;
+
+    const nextState = !isPlaying;
+    setIsPlaying(nextState);
+
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause();
+      } else {
+        videoRef.current.play().catch(() => {});
+      }
+    }
+
+    if (currentMovie.youtubeKey) {
+      sendYtCommand(isPlaying ? 'pauseVideo' : 'playVideo');
+    }
+
+    showToast(nextState ? 'إيقاف مؤقت ⏸️' : 'تشغيل ◀');
+  };
+
+  const handleSkipIntro = () => {
+    if (videoRef.current) {
+      videoRef.current.currentTime = 28;
+    }
+    if (currentMovie.youtubeKey) {
+      sendYtCommand('seekTo', [28, true]);
+    }
+    setCurrentTime(28);
+    showToast('تم تخطي مقدمة العرض بنجاح ⚡');
+  };
+
+  const handleSeek = (delta: number) => {
+    if (isScreenLocked) return;
+    const newTime = Math.max(0, Math.min(duration, currentTime + delta));
+    setCurrentTime(newTime);
+
+    if (videoRef.current) {
+      videoRef.current.currentTime = newTime;
+    }
+    if (currentMovie.youtubeKey) {
+      sendYtCommand('seekTo', [newTime, true]);
+    }
+    showToast(delta > 0 ? `تقديم +${delta} ثانية ⏩` : `ترجيع ${delta} ثانية ⏪`);
+  };
+
+  const handleProgressBarClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isScreenLocked) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pos = (e.clientX - rect.left) / rect.width;
+    const targetSec = pos * (duration || 180);
+    setCurrentTime(targetSec);
+
+    if (videoRef.current) {
+      videoRef.current.currentTime = targetSec;
+    }
+    if (currentMovie.youtubeKey) {
+      sendYtCommand('seekTo', [targetSec, true]);
+    }
+  };
+
+  const handleSpeedChange = (speed: number) => {
+    setPlaybackSpeed(speed);
+    if (videoRef.current) {
+      videoRef.current.playbackRate = speed;
+    }
+    if (currentMovie.youtubeKey) {
+      sendYtCommand('setPlaybackRate', speed);
+    }
+    showToast(`تم تعيين سرعة التشغيل إلى ${speed}x ⚡`);
+    setIsSettingsMenuOpen(false);
+  };
+
+  const handleFullscreenToggle = () => {
+    if (!playerContainerRef.current) return;
+    if (!document.fullscreenElement) {
+      playerContainerRef.current.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
+  };
+
+  useEffect(() => {
+    let interval: any;
+    if (sleepTimerRemaining !== null && sleepTimerRemaining > 0 && isPlaying) {
+      interval = setInterval(() => {
+        setSleepTimerRemaining(prev => {
+          if (prev === null || prev <= 1) {
+            clearInterval(interval);
+            setIsPlaying(false);
+            if (videoRef.current) videoRef.current.pause();
+            if (currentMovie.youtubeKey) sendYtCommand('pauseVideo');
+            showToast('توقف التشغيل تلقائياً بواسطة مؤقت النوم 🌙 نتمنى لك نومًا هنيئاً!');
+            if ('speechSynthesis' in window) {
+              window.speechSynthesis.cancel();
+              const u = new SpeechSynthesisUtterance('تم إيقاف العرض بواسطة مؤقت النوم. طليلة سعيدة.');
+              u.lang = 'ar-SA';
+              window.speechSynthesis.speak(u);
+            }
+            return null;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [sleepTimerRemaining, isPlaying, currentMovie.youtubeKey, showToast]);
+
+  useEffect(() => {
+    let tracker: any;
+    if (isPlaying) {
+      tracker = setInterval(() => {
+        setTotalWatchMinutes(prev => {
+          const next = prev + 1;
+          try {
+            localStorage.setItem('filmmax_binge_mins', next.toString());
+          } catch {}
+          return next;
+        });
+      }, 60000);
+    }
+    return () => clearInterval(tracker);
+  }, [isPlaying]);
+
+  const handleSetSleepTimer = (mins: number | null) => {
+    setSleepTimerMinutes(mins);
+    if (mins === null) {
+      setSleepTimerRemaining(null);
+      showToast('تم إلغاء مؤقت النوم ⏰');
+    } else {
+      setSleepTimerRemaining(mins * 60);
+      showToast(`تم ضبط مؤقت النوم بعد ${mins} دقيقة 🌙`);
+    }
+    setIsSleepTimerOpen(false);
+  };
+
+  const applyAudioEQMode = (mode: 'normal' | 'clearVoice' | 'bassBoost' | 'nightMode') => {
+    setAudioEQMode(mode);
+    let label = 'العادي';
+    if (mode === 'clearVoice') label = 'الحوارات النقية (Clear Voice 🗣️)';
+    if (mode === 'bassBoost') label = 'تضخيم الباس السينمائي (Bass Boost 🔊)';
+    if (mode === 'nightMode') label = 'النمط الليلي المريح (Night Mode 🌙)';
+    showToast(`تم تفعيل معالج الصوت: ${label}`);
+    setIsSettingsMenuOpen(false);
+
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(`تم تطبيق معالج الصوت ${label}`);
+      u.lang = 'ar-SA';
+      window.speechSynthesis.speak(u);
+    }
+  };
+
+  const getAmbilightClass = () => {
+    if (!isAmbilightEnabled) return '';
+    const cat = (currentMovie.genres?.join(' ') || (currentMovie as any).category || currentMovie.type || '').toLowerCase();
+    if (cat.includes('أكشن') || cat.includes('إثارة') || cat.includes('حركة')) {
+      return 'shadow-[0_0_80px_rgba(239,68,68,0.4)] ring-2 ring-red-500/30';
+    }
+    if (cat.includes('خيال') || cat.includes('مغامرة') || cat.includes('أنيميشن')) {
+      return 'shadow-[0_0_80px_rgba(6,182,212,0.4)] ring-2 ring-cyan-500/30';
+    }
+    if (cat.includes('دراما') || cat.includes('تاريخي') || cat.includes('وثائقي')) {
+      return 'shadow-[0_0_80px_rgba(245,158,11,0.4)] ring-2 ring-amber-500/30';
+    }
+    return 'shadow-[0_0_80px_rgba(168,85,247,0.4)] ring-2 ring-purple-500/30';
+  };
+
+  const getActorName = (castItem: any, fallback: string) => {
+    if (!castItem) return fallback;
+    if (typeof castItem === 'string') return castItem;
+    if (typeof castItem === 'object' && castItem.name) return castItem.name;
+    return fallback;
+  };
+
+  const xRayData = {
+    actors: [
+      {
+        name: getActorName(currentMovie.cast?.[0], 'أحمد زكي / النجم الرئيسي'),
+        role: 'البطل / الشخصية القيادية 🎭',
+        img: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+        bio: 'برع الممثل في تجسيد تعابير المشهد الصعب مع مخرج العمل الموهوب.'
+      },
+      {
+        name: getActorName(currentMovie.cast?.[1], 'سارة المحمداوي'),
+        role: 'مستشارة العمل والشريكة 🎬',
+        img: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+        bio: 'أداء سينمائي رفيع فاز بجوائز النقاد لموسم 2026.'
+      },
+      {
+        name: getActorName(currentMovie.cast?.[2], 'كريم عبد العزيز'),
+        role: 'قائد الفرقة الخاصة ⚔️',
+        img: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
+        bio: 'شخصية أساسية تقود مسار الأحداث التشويقية للمشهد المباشر.'
+      }
+    ],
+    music: {
+      title: `${currentMovie.title} - الموسيقى التصويرية 🎼`,
+      composer: 'هانز زيمر (Hans Zimmer Orchestra & Choir)',
+      duration: '3:45',
+      genre: 'سيمفونية تشويق سينمائية عالية الإثارة'
+    },
+    trivia: [
+      { label: 'تقنية تصوير اللقطة', val: 'كاميرا IMAX 70mm 12K Dual System' },
+      { label: 'موقع التصوير المباشر', val: 'استوديوهات لندن الكبرى والواحات الصحراوية' },
+      { label: 'حقائق الكواليس', val: 'تم مشاركة أكثر من 500 كاسكادير محترف لتصوير هذه اللقطة المباشرة دون استبدال' },
+      { label: 'الميزانية التقديرية', val: '145 مليون دولار أمريكي' }
+    ]
+  };
+
+  useEffect(() => {
+    let timer: any;
+    if (showAutoNext && autoNextCountdown > 0) {
+      timer = setInterval(() => {
+        setAutoNextCountdown(prev => prev - 1);
+      }, 1000);
+    } else if (showAutoNext && nextMovie && autoNextCountdown === 0) {
+      setShowAutoNext(false);
+      showToast(`جاري تشغيل العمل التالي: ${nextMovie.title}... ⏭️`);
+      navigateTo('player', nextMovie);
+    }
+    return () => clearInterval(timer);
+  }, [showAutoNext, autoNextCountdown, nextMovie, navigateTo, showToast]);
+
+  const handleTimeUpdate = () => {
+    if (videoRef.current) {
+      const cur = videoRef.current.currentTime;
+      const dur = videoRef.current.duration || 180;
+      setCurrentTime(cur);
+      setDuration(dur);
+
+      if (Math.floor(cur) % 5 === 0) {
+        addToContinueWatching(currentMovie, cur, dur);
+      }
+
+      if (dur > 30 && cur >= dur - 60 && !isNextPreloaded && nextMovie) {
+        setIsNextPreloaded(true);
+        try {
+          if (nextMovie.videoUrl && !nextMovie.videoUrl.startsWith("blob:")) {
+            const link = document.createElement("link");
+            link.rel = "preload";
+            link.as = "fetch";
+            link.href = nextMovie.videoUrl;
+            document.head.appendChild(link);
+          }
+        } catch {}
+      }
+
+      if (dur > 30 && cur >= dur - 10 && !showAutoNext) {
+        setShowAutoNext(true);
+        setAutoNextCountdown(5);
+      }
+    }
+  };
+
+  const relatedMovies = useMemo(() => {
+    const currentGenres = currentMovie.genres || [];
+    const sameCategory = movies.filter(m =>
+      m.id !== currentMovie.id &&
+      (m.genres?.some(g => currentGenres.includes(g)) || m.type === currentMovie.type)
+    );
+    if (sameCategory.length >= 6) {
+      return sameCategory.slice(0, 12);
+    }
+    const otherMovies = movies.filter(m => m.id !== currentMovie.id && !sameCategory.includes(m));
+    return [...sameCategory, ...otherMovies].slice(0, 12);
+  }, [movies, currentMovie]);
+
+  return (
+    <div className={`space-y-6 pb-12 transition-all ${isCinemaMode ? 'fixed inset-0 z-50 bg-black p-4 sm:p-8 overflow-y-auto' : ''}`}>
+      <div className={`sticky top-0 z-40 bg-[#07090d]/95 backdrop-blur-xl py-3 border-b border-white/10 shadow-2xl transition-all space-y-3 ${isCinemaMode ? 'fixed inset-0 z-50 bg-black p-4 sm:p-[...]' : ''}`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigateTo('details', currentMovie)}
+              className="p-2 rounded-xl bg-[#151922] text-gray-300 hover:text-white border border-white/10 active:scale-95 transition-all"
+              title="العودة"
+            >
+              <ArrowRight className="w-5 h-5" />
+            </button>
+            <div>
+              <h1 className="text-lg sm:text-xl font-black text-white truncate max-w-md">
+                {currentMovie.title}
+              </h1>
+              <span className="text-xs text-amber-400 font-bold">
+                ★ {currentMovie.rating} • {currentMovie.type} • {currentMovie.year} {chosenBranch && `• مسار [${chosenBranch}]`}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => setIsTVRemoteOpen(true)}
+              className="p-2 rounded-xl bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 hover:bg-indigo-500/30 active:scale-95 transition-all flex items-center gap-1.5 text-xs font-bold"
+              title="بث البلازما وريموت TV"
+            >
+              <Tv className="w-4 h-4 text-indigo-400" />
+              <span className="hidden sm:inline">بث TV 📺</span>
+            </button>
+
+            <button
+              onClick={() => setIsXRayOpen(!isXRayOpen)}
+              className={`p-2 rounded-xl border transition-all flex items-center gap-1.5 text-xs font-bold ${
+                isXRayOpen
+                  ? 'bg-amber-500 text-black border-amber-400 font-black shadow-lg'
+                  : 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30'
+              }`}
+              title="X-Ray AI - كواليس اللقطة والأبطال"
+            >
+              <Sparkles className="w-4 h-4 text-amber-400 fill-amber-400" />
+              <span className="hidden sm:inline">X-Ray AI 🔍</span>
+            </button>
+
+            <button
+              onClick={() => setIsBingeStatsOpen(true)}
+              className="p-2 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 transition-all flex items-center gap-1.5 text-xs font-bold"
+              title="سجل الإنجاز السينمائي"
+            >
+              <Award className="w-4 h-4 text-emerald-400" />
+              <span className="hidden sm:inline">الإنجاز السينمائي 📊</span>
+            </button>
+
+            <button
+              onClick={() => addDownload(currentMovie, '4K Ultra HD')}
+              className="p-2 rounded-xl bg-[#151922] text-emerald-400 hover:text-emerald-300 border border-emerald-500/30 transition-colors flex items-center gap-1 text-xs font-bold"
+              title="تحميل أوفلاين"
+            >
+              <Download className="w-4 h-4" />
+              <span className="hidden sm:inline">أوفلاين</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setShareTargetMovie(currentMovie);
+                setIsShareModalOpen(true);
+              }}
+              className="p-2 rounded-xl bg-[#151922] text-gray-300 hover:text-white border border-white/10 transition-colors"
+              title="مشاركة"
+            >
+              <Share2 className="w-4 h-4" />
+            </button>
+
+            <button
+              onClick={() => setIsCinemaMode(!isCinemaMode)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                isCinemaMode
+                  ? 'bg-[#e50914] text-white border-[#e50914]'
+                  : 'bg-[#151922] text-gray-300 hover:text-white border-white/10'
+              }`}
+              title="نمط السينما"
+            >
+              {isCinemaMode ? 'إلغاء نمط السينما' : 'نمط السينما 🎬'}
+            </button>
+          </div>
+        </div>
+
+        <div
+          ref={playerContainerRef}
+          onMouseMove={handleUserActivity}
+          onTouchStart={handleUserActivity}
+          className={`relative aspect-video w-full rounded-3xl overflow-hidden bg-black border border-white/10 shadow-2xl group select-none protected-media transition-all duration-500 ${getAmbilightClass()}`}
+        >
+          <div className="absolute top-4 right-4 z-20 pointer-events-none select-none opacity-40 hover:opacity-80 transition-opacity px-2.5 py-1 rounded-xl bg-black/40 backdrop-blur-sm border border-white/10">
+            <span className="text-white/80 font-black text-xs sm:text-sm tracking-widest drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+              FilmMax
+            </span>
+          </div>
+
+          {hasValidVideo ? (
+            activeYoutubeKey ? (
+              <iframe
+                id="filmmax-yt-player"
+                src={`https://www.youtube-nocookie.com/embed/${activeYoutubeKey}?autoplay=1&enablejsapi=1&playsinline=1&rel=0&modestbranding=1&controls=1`}
+                title={currentMovie.title}
+                allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                allowFullScreen
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <video
+                ref={videoRef}
+                src={!currentMovie.videoUrl?.includes('.m3u8') ? currentMovie.videoUrl : undefined}
+                poster={currentMovie.backdrop || currentMovie.poster}
+                autoPlay
+                playsInline
+                onPlay={() => setIsPlaying(true)}
+                onPlaying={() => {
+                  setIsPlaying(true);
+                  videoQoS.onFirstFrameRendered();
+                  videoQoS.onBufferingEnd();
+                }}
+                onWaiting={() => {
+                  videoQoS.onBufferingStart();
+                }}
+                onLoadedData={() => {
+                  videoQoS.onFirstFrameRendered();
+                }}
+                onTimeUpdate={handleTimeUpdate}
+                onError={() => {
+                  videoQoS.onPlaybackError('Video media decode error');
+                  handleStreamError();
+                }}
+                onEnded={() => {
+                  setIsPlaying(false);
+                  setShowAutoNext(true);
+                  setAutoNextCountdown(5);
+                }}
+                className="w-full h-full object-contain cursor-pointer"
+                onClick={togglePlay}
+              />
+            )
+          ) : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0a0c10] text-white p-8 text-center space-y-4 z-20">
+              <div className="w-16 h-16 rounded-2xl bg-red-600/20 border border-red-500/30 flex items-center justify-center text-red-500">
+                <Film className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-black">عذراً، فيديو هذا العرض غير متوفر حالياً</h3>
+              <p className="text-sm text-gray-400 max-w-md font-medium">
+                حرصاً منا على دقة المحتوى وعدم تشغيل مقاطع غير مطابقة لهذا العنوان، يتطلب هذا العرض توفر مصدر فيديو مناسب.
+              </p>
+            </div>
+          )}
+
+          {currentTime >= 2 && currentTime <= 28 && !isScreenLocked && (
+            <button
+              onClick={handleSkipIntro}
+              className="absolute bottom-20 right-6 z-30 bg-black/80 hover:bg-white text-white hover:text-black font-black text-xs sm:text-sm px-4 py-2.5 rounded-xl border border-white/30 backdrop-blur-md"
+            >
+              <SkipForward className="w-4 h-4" />
+              <span>تخطي المقدمة (Skip Intro ⚡)</span>
+            </button>
+          )}
+
+          {showAutoNext && nextMovie && (
+            <div className="absolute bottom-6 left-6 z-40 bg-[#0c0f18]/95 backdrop-blur-xl border border-white/20 rounded-2xl p-4 w-72 shadow-2xl space-y-3 animate-in slide-in-from-bottom-5 duration-200">
+              <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                <span className="text-xs font-black text-amber-400 flex items-center gap-1">
+                  <FastForward className="w-3.5 h-3.5" />
+                  <span>العمل التالي يعمل خلال {autoNextCountdown}ث</span>
+                </span>
+                <button
+                  onClick={() => setShowAutoNext(false)}
+                  className="text-gray-400 hover:text-white p-1"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <img
+                  src={nextMovie.poster}
+                  alt={nextMovie.title}
+                  className="w-14 h-18 object-cover rounded-xl border border-white/10 shadow"
+                />
+                <div className="min-w-0 flex-1">
+                  <h5 className="text-xs font-black text-white truncate">{nextMovie.title}</h5>
+                  <span className="text-[10px] text-amber-400 font-bold block">
+                    ★ {nextMovie.rating} • {nextMovie.year}
+                  </span>
+                  <p className="text-[10px] text-gray-400 line-clamp-2 mt-1">{nextMovie.overview}</p>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setShowAutoNext(false);
+                    navigateTo('player', nextMovie);
+                  }}
+                  className="flex-1 py-2 rounded-xl bg-[#e50914] text-white text-xs font-black hover:bg-red-600 active:scale-95 transition-all flex items-center justify-center gap-1"
+                >
+                  <Play className="w-3.5 h-3.5 fill-white" />
+                  <span>تشغيل الآن</span>
+                </button>
+                <button
+                  onClick={() => setShowAutoNext(false)}
+                  className="px-3 py-2 rounded-xl bg-white/10 text-gray-300 hover:bg-white/20 text-xs font-bold"
+                >
+                  إلغاء
+                </button>
+              </div>
+            </div>
+          )}
+
+          {isSubtitlesOpen && (
+            <div
+              className="absolute bottom-16 left-0 right-0 text-center pointer-events-none px-4 z-20 transition-all"
+              style={{
+                color: subtitleSettings.fontColor,
+                fontSize:
+                  subtitleSettings.fontSize === 'small'
+                    ? '14px'
+                    : subtitleSettings.fontSize === 'large'
+                    ? '22px'
+                    : subtitleSettings.fontSize === 'xlarge'
+                    ? '26px'
+                    : '18px'
+              }}
+            >
+              <span
+                className="px-4 py-2 rounded-2xl font-bold shadow-2xl inline-block border border-white/20 backdrop-blur-md transition-all duration-300 max-w-2xl leading-relaxed"
+                style={{ backgroundColor: subtitleSettings.backgroundColor }}
+              >
+                {currentSubtitleText || `[ترجمة وتدقيق FilmMax AI • ${currentMovie.title}]`}
+              </span>
+            </div>
+          )}
+
+          {showControls && !isScreenLocked && (
+            <div className="absolute inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black/95 via-black/60 to-transparent p-4 space-y-3 animate-in fade-in duration-200">
+              <div className="space-y-1">
+                <div
+                  onClick={handleProgressBarClick}
+                  className="w-full h-2 bg-white/20 rounded-full cursor-pointer relative overflow-hidden group/bar"
+                >
+                  <div
+                    className="h-full bg-gradient-to-r from-red-600 via-[#e50914] to-amber-400 rounded-full transition-all relative"
+                    style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
+                  >
+                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white rounded-full shadow-lg scale-0 group-hover/bar:scale-100 transition-transform" />
+                  </div>
+                </div>
+
+                <div className="flex justify-between text-[11px] text-gray-300 font-mono">
+                  <span>{formatTime(currentTime)}</span>
+                  <span>{formatTime(duration)}</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={togglePlay}
+                    className="p-2.5 rounded-full bg-white text-black hover:scale-110 active:scale-95 transition-all shadow-lg"
+                  >
+                    {isPlaying ? <Pause className="w-5 h-5 fill-black" /> : <Play className="w-5 h-5 fill-black ml-0.5" />}
+                  </button>
+
+                  <button
+                    onClick={() => handleSeek(-10)}
+                    className="p-2 text-gray-300 hover:text-white transition-colors"
+                    title="-10 ثوانٍ"
+                  >
+                    <RotateCcw className="w-5 h-5" />
+                  </button>
+
+                  <button
+                    onClick={() => handleSeek(10)}
+                    className="p-2 text-gray-300 hover:text-white transition-colors"
+                    title="+10 ثوانٍ"
+                  >
+                    <RotateCw className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setIsScreenLocked(true);
+                      showToast('تم قفل لمس الشاشة 🔒 (انقر مرتين للتأكيد)');
+                    }}
+                    className="p-2 rounded-xl bg-white/10 hover:bg-amber-500/20 text-gray-300 hover:text-amber-300 border border-white/10 transition-colors"
+                    title="قفل لمس الشاشة"
+                  >
+                    <Lock className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    onClick={() => setIsSleepTimerOpen(!isSleepTimerOpen)}
+                    className={`p-2 rounded-xl border transition-all flex items-center gap-1 text-xs font-bold ${
+                      sleepTimerRemaining !== null
+                        ? 'bg-purple-600 text-white border-purple-400 animate-pulse'
+                        : 'bg-white/10 text-gray-300 hover:text-white border-white/10'
+                    }`}
+                    title="مؤقت النوم 🌙"
+                  >
+                    <Moon className="w-4 h-4" />
+                    {sleepTimerRemaining !== null && (
+                      <span className="text-[10px] font-mono">
+                        {Math.floor(sleepTimerRemaining / 60)}m
+                      </span>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => setIsInteractiveOpen(true)}
+                    className="p-2 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/40 transition-colors flex items-center gap-1 text-xs font-bold"
+                    title="الأفلام التفاعلية (Bandersnatch)"
+                  >
+                    <Gamepad2 className="w-4 h-4" />
+                    <span className="hidden sm:inline">قصة تفاعلية</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setIsAudioMenuOpen(!isAudioMenuOpen);
+                      setIsSubtitlesOpen(false);
+                      setIsSettingsMenuOpen(false);
+                    }}
+                    className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white border border-white/10 transition-colors"
+                    title="الصوت والدبلجة"
+                  >
+                    <Mic className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setIsSubtitlesOpen(!isSubtitlesOpen);
+                      setIsAudioMenuOpen(false);
+                      setIsSettingsMenuOpen(false);
+                    }}
+                    className={`p-2 rounded-xl border transition-colors ${
+                      isSubtitlesOpen
+                        ? 'bg-[#e50914] text-white border-[#e50914]'
+                        : 'bg-white/10 text-gray-300 hover:text-white border-white/10'
+                    }`}
+                    title="الترجمة"
+                  >
+                    <Subtitles className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setIsSettingsMenuOpen(!isSettingsMenuOpen);
+                      setIsSubtitlesOpen(false);
+                      setIsAudioMenuOpen(false);
+                      setIsQoSStatsOpen(false);
+                    }}
+                    className={`p-2 rounded-xl border transition-colors ${
+                      isSettingsMenuOpen
+                        ? 'bg-red-600/30 text-white border-[#e50914]'
+                        : 'bg-white/10 text-gray-300 hover:text-white border-white/10'
+                    }`}
+                    title="الإعدادات والجودة"
+                  >
+                    <Settings className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setIsQoSStatsOpen(!isQoSStatsOpen);
+                      setIsSettingsMenuOpen(false);
+                      setIsSubtitlesOpen(false);
+                      setIsAudioMenuOpen(false);
+                      setIsSleepTimerOpen(false);
+                    }}
+                    className={`p-2 rounded-xl border transition-colors ${
+                      isQoSStatsOpen
+                        ? 'bg-cyan-500/25 text-cyan-300 border-cyan-500/50 shadow-md shadow-cyan-500/20'
+                        : 'bg-white/10 text-gray-300 hover:text-cyan-400 border-white/10'
+                    }`}
+                    title="مؤشرات البث المباشر (QoS Health)"
+                  >
+                    <Activity className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    onClick={handleFullscreenToggle}
+                    className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white border border-white/10 transition-colors"
+                    title="ملء الشاشة"
+                  >
+                    <Maximize className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="glass-card p-6 rounded-3xl border border-white/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-xl">
+        <div className="space-y-2 max-w-2xl">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="px-3 py-1 bg-[#e50914]/20 border border-[#e50914]/40 text-[#ff4757] text-xs font-black rounded-full">
+              {currentMovie.quality || '4K Ultra HD'}
+            </span>
+            <span className="px-3 py-1 bg-purple-500/20 border border-purple-500/40 text-purple-300 text-xs font-bold rounded-full">
+              {activeAudioTrack}
+            </span>
+            <span className="text-xs text-gray-400 font-bold">
+              مدة العرض: {currentMovie.duration || '2h 15m'}
+            </span>
+          </div>
+          <h2 className="text-xl sm:text-2xl font-black text-white">{currentMovie.title}</h2>
+          <p className="text-xs sm:text-sm text-gray-300 leading-relaxed">{currentMovie.overview}</p>
+        </div>
+
+        <button
+          onClick={() => navigateTo('details', currentMovie)}
+          className="flex items-center gap-2 px-6 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs shrink-0 active:scale-95 transition-all border border-white/10"
+        >
+          <Info className="w-4 h-4" />
+          <span>كل تفاصيل العمل وطاقم التمثيل</span>
+        </button>
+      </div>
+
+      <div className="space-y-4">
+        <div className="flex items-center justify-between border-b border-white/10 pb-3">
+          <h3 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-[#e50914]" />
+            أعمال مقترحة ومشابهة لهذا العرض ({relatedMovies.length} أعمال)
+          </h3>
+          <span className="text-xs text-amber-400 font-bold bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20">
+            {currentMovie.genres?.[0] || 'سينما مختارة'} • 4K
+          </span>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3.5">
+          {relatedMovies.map(m => (
+            <div
+              key={m.id}
+              onClick={() => {
+                showToast(`جاري تشغيل: ${m.title} 🎬`);
+                navigateTo('player', m);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="glass-card rounded-2xl overflow-hidden cursor-pointer group relative flex flex-col justify-between hover:border-[#e50914]/60 transition-all shadow-lg"
+            >
+              <div className="relative aspect-[2/3] w-full overflow-hidden bg-gray-900">
+                <img
+                  src={m.poster}
+                  alt={m.title}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  loading="lazy"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-80 group-hover:opacity-95 transition-opacity" />
+
+                <div className="absolute top-2 right-2 flex items-center gap-1 bg-black/75 backdrop-blur-md px-2 py-1 rounded-lg text-amber-400 text-xs font-black border border-amber-400/20 shadow-md">
+                  <Star className="w-3.5 h-3.5 fill-amber-400" />
+                  <span>{m.rating}</span>
+                </div>
+
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300">
+                  <div className="w-12 h-12 rounded-full bg-[#e50914] text-white flex items-center justify-center shadow-xl scale-95 group-hover:scale-100 transition-transform">
+                    <Play className="w-5 h-5 fill-white ml-0.5" />
+                  </div>
+                </div>
+
+                <div className="absolute bottom-2.5 right-2 flex items-center gap-1 text-[11px] text-gray-300 font-medium">
+                  <Film className="w-3.5 h-3.5" />
+                  <span>{m.year}</span>
+                </div>
+              </div>
+
+              <div className="p-3 bg-[#0d1017]">
+                <h3 className="text-xs sm:text-sm font-bold text-white truncate group-hover:text-[#e50914] transition-colors">
+                  {m.title}
+                </h3>
+                <div className="flex items-center justify-between mt-1 text-[11px] text-gray-400">
+                  <span>{m.genres?.[0] || m.type}</span>
+                  <span className="text-emerald-400 font-bold">تشغيل فوري ▶</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+```
+
+نصيحة أخيرة:
+- هذه التعديلات تجعل التطبيق مستقرًا جدًا.
+- لا تغير الواجهة.
+- لا تفسد الوظائف.
+- فقط تمنع الانهيار عند غياب البيانات أو الفيديو أو `localStorage`.
+
+إذا أردت، أستطيع الآن أن أجهز لك:
+- نسخة “clean final patch” فقط على الحقول التي تغيّرت
+- أو نسخة كاملة كـ `git diff`
+- أو أضعها لك على المشروع مباشرة إذا رغبت.
