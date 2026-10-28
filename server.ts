@@ -584,6 +584,92 @@ async function startServer() {
       res.status(500).json({ success: false, error: error.message });
     }
   });
+
+  // POST /api/upload - Handle file upload payloads & save to public/streams/uploads
+  app.post("/api/upload", async (req, res) => {
+    try {
+      const { fileName, dataUrl, type, target, userId, fileType } = req.body;
+
+      if (!dataUrl || !type || !target || !userId) {
+        return res.status(400).json({
+          success: false,
+          message: "بيانات الملف غير مكتملة: dataUrl / type / target / userId مطلوبة"
+        });
+      }
+
+      const uploadsRoot = path.join(process.cwd(), "public", "streams", "uploads");
+      const targetDir = path.join(uploadsRoot, target);
+      if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir, { recursive: true });
+      }
+
+      const isDataUrl = typeof dataUrl === "string" && dataUrl.startsWith("data:");
+      let buffer: Buffer;
+      let extension = type === "video" ? "mp4" : "jpg";
+
+      if (isDataUrl) {
+        const match = dataUrl.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+        if (!match) {
+          return res.status(400).json({
+            success: false,
+            message: "صيغة dataUrl غير صحيحة"
+          });
+        }
+
+        const detectedType = match[1];
+        const base64Data = match[2];
+
+        if (type === "image") {
+          extension = detectedType.includes("png")
+            ? "png"
+            : detectedType.includes("webp")
+            ? "webp"
+            : detectedType.includes("jpeg")
+            ? "jpg"
+            : "jpg";
+        } else {
+          extension = detectedType.includes("webm")
+            ? "webm"
+            : detectedType.includes("quicktime")
+            ? "mov"
+            : "mp4";
+        }
+
+        buffer = Buffer.from(base64Data, "base64");
+      } else {
+        buffer = Buffer.from(dataUrl, "base64");
+      }
+
+      const safeFileName =
+        fileName && fileName.trim()
+          ? fileName.replace(/[^\w.-]/g, "_")
+          : `${target}_${Date.now()}.${extension}`;
+
+      const finalFileName = `${Date.now()}_${safeFileName}`;
+      const finalPath = path.join(targetDir, finalFileName);
+
+      fs.writeFileSync(finalPath, buffer);
+
+      const publicUrl = `/streams/uploads/${target}/${finalFileName}`;
+
+      return res.json({
+        success: true,
+        url: publicUrl,
+        publicUrl,
+        fileName: finalFileName,
+        target,
+        type,
+        userId,
+        uploadedAt: new Date().toISOString()
+      });
+    } catch (error: any) {
+      console.error("Upload endpoint error:", error);
+      return res.status(500).json({
+        success: false,
+        message: error?.message || "فشل رفع الملف"
+      });
+    }
+  });
   
   // ==================== REELS PERSISTENT API ENDPOINTS ====================
 
