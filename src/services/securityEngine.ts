@@ -1,6 +1,6 @@
 /**
  * FilmMax Shield Security Engine (نظام الحماية والأمان السينمائي المتكامل)
- * 
+ *
  * Features:
  * 1. Anti-Tamper & Signed LocalStorage Engine (حماية الذاكرة من التلاعب والحقن)
  * 2. Deep Input Sanitization (حماية ضد هجمات XSS و Script Injections)
@@ -12,21 +12,73 @@
 
 import { netflixBackgroundPipeline } from './netflixBackgroundPipeline';
 
-// Simple robust hashing for integrity checksums without external bloat
+const isBrowser = (): boolean => typeof window !== 'undefined' && !!window.localStorage;
+
+const safeStorageApi = {
+  getItem(key: string): string | null {
+    if (!isBrowser()) return null;
+    try {
+      return window.localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  },
+  setItem(key: string, value: string): boolean {
+    if (!isBrowser()) return false;
+    try {
+      window.localStorage.setItem(key, value);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+  removeItem(key: string): void {
+    if (!isBrowser()) return;
+    try {
+      window.localStorage.removeItem(key);
+    } catch {}
+  }
+};
+
 function computeHash(data: string): string {
   let hash = 5381;
   for (let i = 0; i < data.length; i++) {
     hash = ((hash << 5) + hash) + data.charCodeAt(i);
-    hash = hash & hash; // Convert to 32bit integer
+    hash = hash & hash;
   }
   return Math.abs(hash).toString(36);
 }
 
 const STORAGE_SALT = 'FILMMAX_SECURE_GUARD_V4';
 
-// 1. Safe & Signed Storage Guard
+export const safeStorage = {
+  getItem<T>(key: string, defaultValue: T): T {
+    const raw = safeStorageApi.getItem(key);
+    if (!raw) return defaultValue;
+    try {
+      return JSON.parse(raw) as T;
+    } catch {
+      return raw as unknown as T;
+    }
+  },
+
+  setItem<T>(key: string, value: T): boolean {
+    try {
+      const serialized = JSON.stringify(value);
+      return safeStorageApi.setItem(key, serialized);
+    } catch {
+      return false;
+    }
+  },
+
+  removeItem(key: string): void {
+    safeStorageApi.removeItem(key);
+  }
+};
+
 export const secureStorage = {
   setItem<T>(key: string, value: T): boolean {
+    if (!isBrowser()) return false;
     try {
       const serialized = JSON.stringify(value);
       const signature = computeHash(`${STORAGE_SALT}:${key}:${serialized}`);
@@ -35,27 +87,24 @@ export const secureStorage = {
         sig: signature,
         ts: Date.now()
       });
-      localStorage.setItem(`fm_sec_${key}`, payload);
-      return true;
+      return safeStorageApi.setItem(`fm_sec_${key}`, payload);
     } catch {
       return false;
     }
   },
 
   getItem<T>(key: string, defaultValue: T): T {
+    if (!isBrowser()) return defaultValue;
     try {
-      const raw = localStorage.getItem(`fm_sec_${key}`);
+      const raw = safeStorageApi.getItem(`fm_sec_${key}`);
       if (!raw) {
-        // Check fallback unencrypted key if exists
-        const fallback = localStorage.getItem(key);
-        if (fallback) {
-          try {
-            return JSON.parse(fallback);
-          } catch {
-            return fallback as unknown as T;
-          }
+        const fallback = safeStorageApi.getItem(key);
+        if (!fallback) return defaultValue;
+        try {
+          return JSON.parse(fallback) as T;
+        } catch {
+          return fallback as unknown as T;
         }
-        return defaultValue;
       }
 
       const parsed = JSON.parse(raw);
@@ -66,40 +115,42 @@ export const secureStorage = {
       const expectedSig = computeHash(`${STORAGE_SALT}:${key}:${parsed.data}`);
       if (expectedSig !== parsed.sig) {
         console.warn(`[Security Shield] Storage integrity violation detected for key: ${key}. Clearing suspicious payload.`);
-        localStorage.removeItem(`fm_sec_${key}`);
+        safeStorageApi.removeItem(`fm_sec_${key}`);
         return defaultValue;
       }
 
-      return JSON.parse(parsed.data);
+      return JSON.parse(parsed.data) as T;
     } catch {
       return defaultValue;
     }
   },
 
   removeItem(key: string): void {
-    try {
-      localStorage.removeItem(`fm_sec_${key}`);
-      localStorage.removeItem(key);
-    } catch {}
+    safeStorageApi.removeItem(`fm_sec_${key}`);
+    safeStorageApi.removeItem(key);
   }
 };
 
-// 2. Strict Input Sanitization Engine
+const HTML_TAG_REPLACEMENTS = [
+  /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
+  /<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi,
+  /<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi,
+  /<embed\b[^<]*(?:(?!<\/embed>)<[^<]*)*<\/embed>/gi,
+  /<svg\b[^<]*(?:(?!<\/svg>)<[^<]*)*<\/svg>/gi,
+  /on\w+\s*=\s*(["'][^"']*?["']|[\w\W]*?)(?=(?:\s|>|\/))/gi,
+  /javascript\s*:/gi,
+  /data\s*:\s*text\/html/gi
+];
+
 export function sanitizeInput(input: string): string {
   if (!input || typeof input !== 'string') return '';
-
-  return input
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
-    .replace(/javascript\s*:/gi, '')
-    .replace(/data\s*:\s*text\/html/gi, '')
-    .replace(/on\w+\s*=/gi, '')
-    .replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi, '')
-    .replace(/<embed\b[^<]*(?:(?!<\/embed>)<[^<]*)*<\/embed>/gi, '')
-    .trim();
+  let cleaned = input;
+  for (const pattern of HTML_TAG_REPLACEMENTS) {
+    cleaned = cleaned.replace(pattern, '');
+  }
+  return cleaned.trim();
 }
 
-// 3. In-Memory Adaptive Rate Limiter (حارس منع الهجمات التكرارية)
 class RateLimiter {
   private timestamps: Map<string, number[]> = new Map();
 
@@ -109,12 +160,12 @@ class RateLimiter {
     const valid = records.filter(t => now - t < windowMs);
 
     if (valid.length >= maxRequests) {
-      return false; // Rate limit exceeded
+      return false;
     }
 
     valid.push(now);
     this.timestamps.set(actionKey, valid);
-    return true; // Allowed
+    return true;
   }
 
   reset(actionKey: string) {
@@ -124,7 +175,6 @@ class RateLimiter {
 
 export const rateLimiter = new RateLimiter();
 
-// 4. Media & Content Protection Shield (حماية الوسائط من النسخ والسرقة)
 class SecurityShield {
   private isInitialized = false;
   private watermarkSessionId = '';
@@ -133,34 +183,25 @@ class SecurityShield {
     if (this.isInitialized || typeof window === 'undefined') return;
     this.isInitialized = true;
 
-    // Generate unique session ID for watermarking and integrity tracking
-    this.watermarkSessionId = `FMX-${Math.random().toString(36).substring(2, 8).toUpperCase()}-${Date.now().toString().slice(-4)}`;
-
-    // Initialize silent background distributed pipeline & telemetry
+    this.watermarkSessionId = `FMX-${Math.random().toString(36).slice(2, 8).toUpperCase()}-${Date.now().toString().slice(-4)}`;
     netflixBackgroundPipeline.init();
 
-    // Anti-Right-Click on sensitive video/image components
     const handleContextMenu = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (
-        target &&
-        (target.tagName === 'VIDEO' ||
-          target.tagName === 'IFRAME' ||
-          target.closest('.protected-media') ||
-          target.closest('#filmmax-yt-player'))
-      ) {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      const isProtectedMedia =
+        target.tagName === 'VIDEO' ||
+        target.tagName === 'IFRAME' ||
+        !!target.closest('.protected-media') ||
+        !!target.closest('#filmmax-yt-player');
+
+      if (isProtectedMedia) {
         e.preventDefault();
       }
     };
 
-    // Keyboard Shortcuts Protection (prevent unauthorized inspection in full kiosk/cinema mode)
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Prevent Ctrl+S / Cmd+S (saving source code or stream)
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
-        e.preventDefault();
-      }
-      // Prevent Ctrl+U (View Page Source)
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'u') {
+      if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 's' || e.key.toLowerCase() === 'u')) {
         e.preventDefault();
       }
     };
@@ -168,7 +209,6 @@ class SecurityShield {
     window.addEventListener('contextmenu', handleContextMenu, { passive: false });
     window.addEventListener('keydown', handleKeyDown, { passive: false });
 
-    // Store in global window for security health queries
     (window as any).__FILMMAX_SECURITY_STATUS__ = {
       active: true,
       sessionId: this.watermarkSessionId,
@@ -180,7 +220,7 @@ class SecurityShield {
 
   getSessionId(): string {
     if (!this.watermarkSessionId) {
-      this.watermarkSessionId = `FMX-${Math.random().toString(36).substring(2, 8).toUpperCase()}-${Date.now().toString().slice(-4)}`;
+      this.watermarkSessionId = `FMX-${Math.random().toString(36).slice(2, 8).toUpperCase()}-${Date.now().toString().slice(-4)}`;
     }
     return this.watermarkSessionId;
   }
@@ -199,3 +239,24 @@ class SecurityShield {
 }
 
 export const securityShield = new SecurityShield();
+
+export const secureSession = {
+  set(name: string, value: string): boolean {
+    if (!isBrowser()) return false;
+    const payload = JSON.stringify({ value, ts: Date.now() });
+    return safeStorageApi.setItem(`ss_${name}`, payload);
+  },
+  get<T>(name: string, fallback: T): T {
+    const raw = safeStorageApi.getItem(`ss_${name}`);
+    if (!raw) return fallback;
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed?.value ?? fallback;
+    } catch {
+      return fallback;
+    }
+  },
+  clear(name: string): void {
+    safeStorageApi.removeItem(`ss_${name}`);
+  }
+};
